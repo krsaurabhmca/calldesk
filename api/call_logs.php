@@ -15,7 +15,7 @@ $sql = "SELECT c.*, l.name as lead_name, l.status as lead_status
         FROM call_logs c 
         LEFT JOIN leads l ON c.lead_id = l.id 
         $where 
-        ORDER BY c.call_time DESC 
+        ORDER BY c.call_time DESC, c.id DESC 
         LIMIT 50";
 
 $result = mysqli_query($conn, $sql);
