@@ -6,7 +6,7 @@ $executive_id = $auth_user['id'];
 $role = $auth_user['role'];
 $today = date('Y-m-d');
 
-$filter = $_GET['filter'] ?? 'all'; // 'today', 'upcoming', 'all'
+$filter = $_REQUEST['filter'] ?? 'all'; // 'today', 'upcoming', 'all'
 
 $where = ($role === 'admin') ? "1=1" : "f.executive_id = $executive_id";
 

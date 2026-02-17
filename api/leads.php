@@ -9,7 +9,7 @@ $role = $auth_user['role'];
 if ($method === 'GET') {
     // List leads
     $where = ($role === 'admin') ? "1=1" : "assigned_to = $executive_id";
-    $search = mysqli_real_escape_string($conn, $_GET['search'] ?? '');
+    $search = mysqli_real_escape_string($conn, $_REQUEST['search'] ?? '');
     if ($search) {
         $where .= " AND (name LIKE '%$search%' OR mobile LIKE '%$search%')";
     }

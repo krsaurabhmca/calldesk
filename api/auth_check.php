@@ -31,8 +31,10 @@ if (empty($token)) {
     } elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
         $token = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
     } elseif (isset($_SERVER['PHP_AUTH_USER'])) {
-        // Some servers use basic auth headers for bearer tokens
         $token = $_SERVER['PHP_AUTH_USER'];
+    } elseif (isset($_REQUEST['token'])) {
+        // Ultimate fallback: pass token as a normal parameter
+        $token = $_REQUEST['token'];
     }
 }
 
