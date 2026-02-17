@@ -20,7 +20,7 @@ $sql = "SELECT f.*, l.name as lead_name, l.mobile as lead_mobile, l.status as le
         FROM follow_ups f
         JOIN leads l ON f.lead_id = l.id 
         WHERE $where 
-        ORDER BY f.next_follow_up_date ASC, f.id DESC";
+        ORDER BY f.is_completed ASC, f.next_follow_up_date ASC, f.id DESC";
 
 $result = mysqli_query($conn, $sql);
 $tasks = [];

@@ -28,12 +28,15 @@ if ($auth_user['role'] !== 'admin') {
 mysqli_begin_transaction($conn);
 
 try {
-    // 1. Insert Follow-up
+    // 1. Mark previous follow-ups for this lead as completed
+    mysqli_query($conn, "UPDATE follow_ups SET is_completed = 1 WHERE lead_id = $lead_id");
+
+    // 2. Insert New Follow-up
     $sql = "INSERT INTO follow_ups (lead_id, executive_id, remark, next_follow_up_date) 
             VALUES ($lead_id, $executive_id, '$remark', " . ($next_date ? "'$next_date'" : "NULL") . ")";
     mysqli_query($conn, $sql);
 
-    // 2. Update Lead Status if provided
+    // 3. Update Lead Status if provided
     if ($status) {
         mysqli_query($conn, "UPDATE leads SET status = '$status' WHERE id = $lead_id");
     }
