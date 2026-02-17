@@ -2,9 +2,58 @@
 // api/followups.php
 require_once 'auth_check.php';
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    sendResponse(false, 'Invalid request method', null, 405);
-}
+$method = $_SERVER['REQUEST_METHOD'];
+$executive_id = $auth_user['id'];
+$role = $auth_user['role'];
+
+if ($method === 'GET') {
+    // List followups with filters
+    $where = "f.is_completed = 0"; // Default: only show pending
+    
+    // Role check
+    if ($role !== 'admin') {
+        $where .= " AND l.assigned_to = $executive_id";
+    }
+
+    // Search (Name/Mobile)
+    $search = mysqli_real_escape_string($conn, $_GET['search'] ?? '');
+    if ($search) {
+        $where .= " AND (l.name LIKE '%$search%' OR l.mobile LIKE '%$search%')";
+    }
+
+    // Status Filter
+    $status = mysqli_real_escape_string($conn, $_GET['status'] ?? '');
+    if ($status && $status !== 'All') {
+        $where .= " AND l.status = '$status'";
+    }
+
+    // Date Filter (Today, Tomorrow, etc)
+    $date_filter = $_GET['date_filter'] ?? '';
+    $today = date('Y-m-d');
+    
+    if ($date_filter === 'today') {
+        $where .= " AND f.next_follow_up_date = '$today'";
+    } elseif ($date_filter === 'missed') {
+        $where .= " AND f.next_follow_up_date < '$today'";
+    } elseif ($date_filter === 'upcoming') {
+        $where .= " AND f.next_follow_up_date > '$today'";
+    }
+
+    $sql = "SELECT f.*, l.name as lead_name, l.mobile as lead_mobile, l.status as lead_status, l.source_id 
+            FROM follow_ups f
+            JOIN leads l ON f.lead_id = l.id
+            WHERE $where
+            ORDER BY f.next_follow_up_date ASC, f.id DESC LIMIT 100";
+
+    $result = mysqli_query($conn, $sql);
+    $followups = [];
+    while ($row = mysqli_fetch_assoc($result)) {
+        $followups[] = $row;
+    }
+    
+    sendResponse(true, 'Follow-ups fetched', $followups);
+
+} elseif ($method === 'POST') {
 
 $lead_id = (int)($_POST['lead_id'] ?? 0);
 $executive_id = $auth_user['id'];
@@ -47,5 +96,8 @@ try {
 } catch (Exception $e) {
     mysqli_rollback($conn);
     sendResponse(false, 'Database error: ' . $e->getMessage(), null, 500);
+}
+} else {
+    sendResponse(false, 'Method not allowed', null, 405);
 }
 ?>
