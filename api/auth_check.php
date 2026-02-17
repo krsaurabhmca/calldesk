@@ -55,7 +55,4 @@ if (!$user_res || mysqli_num_rows($user_res) === 0) {
 }
 
 $auth_user = mysqli_fetch_assoc($user_res);
-
-// For debugging: Add user info to response header context if needed, 
-// but we'll use $auth_user globally in script files.
 ?>
