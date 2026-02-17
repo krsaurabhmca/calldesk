@@ -14,11 +14,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     sendResponse(true, 'Messages fetched', $messages);
 
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $data = json_decode(file_get_contents('php://input'), true);
-    $title = mysqli_real_escape_string($conn, $data['title'] ?? '');
-    $message = mysqli_real_escape_string($conn, $data['message'] ?? '');
-    $is_default = (int)($data['is_default'] ?? 0);
-    $action = $data['action'] ?? 'add'; // 'add', 'set_default', 'delete'
+    $title = mysqli_real_escape_string($conn, $_POST['title'] ?? '');
+    $message = mysqli_real_escape_string($conn, $_POST['message'] ?? '');
+    $is_default = (int)($_POST['is_default'] ?? 0);
+    $action = $_POST['action'] ?? 'add'; // 'add', 'set_default', 'delete'
 
     if ($action === 'add') {
         if (empty($title) || empty($message)) {
@@ -37,13 +36,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
 
     } elseif ($action === 'set_default') {
-        $id = (int)$data['id'];
+        $id = (int)($_POST['id'] ?? 0);
         mysqli_query($conn, "UPDATE whatsapp_messages SET is_default = 0 WHERE executive_id = $executive_id");
         mysqli_query($conn, "UPDATE whatsapp_messages SET is_default = 1 WHERE id = $id AND executive_id = $executive_id");
         sendResponse(true, 'Default message updated');
 
     } elseif ($action === 'delete') {
-        $id = (int)$data['id'];
+        $id = (int)($_POST['id'] ?? 0);
         mysqli_query($conn, "DELETE FROM whatsapp_messages WHERE id = $id AND executive_id = $executive_id");
         sendResponse(true, 'Message deleted');
     }
