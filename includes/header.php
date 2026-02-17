@@ -42,39 +42,45 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </div>
 
             <nav>
+                <div class="nav-section-label">Main Menu</div>
                 <a href="<?php echo BASE_URL; ?>index.php" class="nav-link <?php echo $current_page == 'index.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-chart-pie"></i> Overview
+                    <i class="fas fa-chart-pie"></i> <span>Overview</span>
                 </a>
                 <a href="<?php echo BASE_URL; ?>leads.php" class="nav-link <?php echo ($current_page == 'leads.php' || $current_page == 'lead_view.php' || $current_page == 'lead_add.php') ? 'active' : ''; ?>">
-                    <i class="fas fa-user-group"></i> Leads
+                    <i class="fas fa-users"></i> <span>Leads</span>
                 </a>
                 <a href="<?php echo BASE_URL; ?>followups.php" class="nav-link <?php echo $current_page == 'followups.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-calendar-check"></i> Tasks
+                    <i class="fas fa-calendar-check"></i> <span>Tasks</span>
                 </a>
                 <a href="<?php echo BASE_URL; ?>call_logs.php" class="nav-link <?php echo $current_page == 'call_logs.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-phone-volume"></i> Call Logs
+                    <i class="fas fa-phone-volume"></i> <span>Call Logs</span>
                 </a>
-                <a href="<?php echo BASE_URL; ?>docs.php" class="nav-link <?php echo $current_page == 'docs.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-book"></i> API Documentation
+
+                <div class="nav-section-label">Communication</div>
+                <a href="<?php echo BASE_URL; ?>messages.php" class="nav-link <?php echo $current_page == 'messages.php' ? 'active' : ''; ?>">
+                    <i class="fab fa-whatsapp"></i> <span>WA Templates</span>
                 </a>
                 
                 <?php if (isAdmin()): ?>
-                <div style="margin: 1.5rem 0 0.5rem 1rem; font-size: 0.625rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em;">Management</div>
+                <div class="nav-section-label">Administration</div>
                 <a href="<?php echo BASE_URL; ?>sources.php" class="nav-link <?php echo $current_page == 'sources.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-tags"></i> Lead Sources
+                    <i class="fas fa-layer-group"></i> <span>Lead Sources</span>
                 </a>
                 <a href="<?php echo BASE_URL; ?>users.php" class="nav-link <?php echo $current_page == 'users.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-user-shield"></i> Team
+                    <i class="fas fa-user-gear"></i> <span>Team Access</span>
                 </a>
                 <a href="<?php echo BASE_URL; ?>reports.php" class="nav-link <?php echo $current_page == 'reports.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-file-invoice"></i> Reports
+                    <i class="fas fa-chart-line"></i> <span>Reports</span>
+                </a>
+                <a href="<?php echo BASE_URL; ?>docs.php" class="nav-link <?php echo $current_page == 'docs.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-code"></i> <span>Developer API</span>
                 </a>
                 <?php endif; ?>
             </nav>
 
-            <div style="margin-top: auto;">
-                <a href="<?php echo BASE_URL; ?>logout.php" class="nav-link" style="color: var(--danger);">
-                    <i class="fas fa-arrow-right-from-bracket"></i> Sign out
+            <div class="sidebar-footer">
+                <a href="<?php echo BASE_URL; ?>logout.php" class="logout-link">
+                    <i class="fas fa-power-off"></i> <span>Sign out</span>
                 </a>
             </div>
         </aside>

@@ -94,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <form action="" method="POST">
                     <div class="form-group">
                         <label class="form-label">Mobile Number</label>
-                        <input type="text" name="mobile" class="form-control" placeholder="99999 99999" required autofocus>
+                        <input type="text" name="mobile" class="form-control" placeholder="99999 99999" maxlength="10" required autofocus>
                     </div>
                     <div class="form-group">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
