@@ -1,6 +1,14 @@
 <?php
 // api/auth_check.php
 header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
 require_once '../config/db.php';
 
 function sendResponse($success, $message, $data = null, $code = 200) {
@@ -13,8 +21,20 @@ function sendResponse($success, $message, $data = null, $code = 200) {
     exit();
 }
 
-$headers = getallheaders();
+$headers = function_exists('getallheaders') ? getallheaders() : [];
 $token = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+
+// Fallback for some PHP-FPM / FastCGI setups where Authorization is stripped from headers
+if (empty($token)) {
+    if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+        $token = $_SERVER['HTTP_AUTHORIZATION'];
+    } elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+        $token = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+    } elseif (isset($_SERVER['PHP_AUTH_USER'])) {
+        // Some servers use basic auth headers for bearer tokens
+        $token = $_SERVER['PHP_AUTH_USER'];
+    }
+}
 
 if (strpos($token, 'Bearer ') === 0) {
     $token = substr($token, 7);

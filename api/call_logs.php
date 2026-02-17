@@ -19,6 +19,9 @@ $sql = "SELECT c.*, l.name as lead_name, l.status as lead_status
         LIMIT 50";
 
 $result = mysqli_query($conn, $sql);
+if (!$result) {
+    sendResponse(false, "Database error: " . mysqli_error($conn), null, 500);
+}
 $logs = [];
 
 while ($row = mysqli_fetch_assoc($result)) {
