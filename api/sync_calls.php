@@ -15,9 +15,17 @@ if (!is_array($data)) {
 }
 
 $synced_count = 0;
-$executive_id = $auth_user['id'];
+$executive_id = (int)$auth_user['id'];
+$user_role = $auth_user['role'];
+
+// If data is wrapped in a 'logs' key
+if (isset($data['logs']) && is_array($data['logs'])) {
+    $data = $data['logs'];
+}
 
 foreach ($data as $call) {
+    if (!is_array($call)) continue;
+    
     $mobile = mysqli_real_escape_string($conn, $call['mobile'] ?? '');
     $type = mysqli_real_escape_string($conn, $call['type'] ?? '');
     $duration = (int)($call['duration'] ?? 0);
@@ -25,12 +33,23 @@ foreach ($data as $call) {
     
     if (empty($mobile) || empty($type) || empty($call_time)) continue;
 
-    // Check if lead exists
-    $lead_res = mysqli_query($conn, "SELECT id FROM leads WHERE mobile = '$mobile'");
-    $lead_id = (mysqli_num_rows($lead_res) > 0) ? mysqli_fetch_assoc($lead_res)['id'] : "NULL";
+    // Check if lead exists and if it belongs to this executive
+    $lead_sql = "SELECT id, assigned_to FROM leads WHERE mobile = '$mobile' LIMIT 1";
+    $lead_res = mysqli_query($conn, $lead_sql);
     
-    // Check for duplicate (same number and exact time)
-    $check = mysqli_query($conn, "SELECT id FROM call_logs WHERE mobile = '$mobile' AND call_time = '$call_time'");
+    $lead_id = "NULL";
+    if (mysqli_num_rows($lead_res) > 0) {
+        $lead_row = mysqli_fetch_assoc($lead_res);
+        $lead_id = (int)$lead_row['id'];
+        
+        // If searching/syncing logs, we might want to auto-assign the lead if it's unassigned
+        // Or at least link the log to the executive who actually made the call
+    }
+    
+    // Check for duplicate (same number and exact time by any executive)
+    $check_sql = "SELECT id FROM call_logs WHERE mobile = '$mobile' AND call_time = '$call_time'";
+    $check = mysqli_query($conn, $check_sql);
+    
     if (mysqli_num_rows($check) == 0) {
         $sql = "INSERT INTO call_logs (mobile, type, duration, call_time, lead_id, executive_id) 
                 VALUES ('$mobile', '$type', $duration, '$call_time', $lead_id, $executive_id)";

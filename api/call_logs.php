@@ -7,8 +7,15 @@ $role = $auth_user['role'];
 
 // Only allow executives to see their own logs or admin everything
 $where = "WHERE 1=1";
+// Executives see logs they personally synced (c.executive_id)
+// OR logs for leads currently assigned to them
 if ($role !== 'admin') {
-    $where .= " AND (c.executive_id = $user_id OR c.executive_id IS NULL)";
+    $where .= " AND (c.executive_id = $user_id OR l.assigned_to = $user_id)";
+}
+
+$mobile_filter = mysqli_real_escape_string($conn, $_REQUEST['mobile'] ?? '');
+if (!empty($mobile_filter)) {
+    $where .= " AND c.mobile = '$mobile_filter'";
 }
 
 $sql = "SELECT c.*, l.id as lead_id, l.name as lead_name, l.status as lead_status
