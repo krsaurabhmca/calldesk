@@ -11,9 +11,9 @@ if ($role !== 'admin') {
     $where .= " AND (c.executive_id = $user_id OR c.executive_id IS NULL)";
 }
 
-$sql = "SELECT c.*, l.name as lead_name, l.status as lead_status
+$sql = "SELECT c.*, l.id as lead_id, l.name as lead_name, l.status as lead_status
         FROM call_logs c 
-        LEFT JOIN leads l ON c.lead_id = l.id 
+        LEFT JOIN leads l ON c.mobile = l.mobile 
         $where 
         ORDER BY c.call_time DESC, c.id DESC 
         LIMIT 50";
