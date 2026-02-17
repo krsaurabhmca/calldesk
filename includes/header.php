@@ -28,7 +28,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/calldesk/assets/css/style.css">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/style.css">
 </head>
 <body>
     <div class="wrapper">
@@ -42,38 +42,38 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </div>
 
             <nav>
-                <a href="/calldesk/index.php" class="nav-link <?php echo $current_page == 'index.php' ? 'active' : ''; ?>">
+                <a href="<?php echo BASE_URL; ?>index.php" class="nav-link <?php echo $current_page == 'index.php' ? 'active' : ''; ?>">
                     <i class="fas fa-chart-pie"></i> Overview
                 </a>
-                <a href="/calldesk/leads.php" class="nav-link <?php echo ($current_page == 'leads.php' || $current_page == 'lead_view.php' || $current_page == 'lead_add.php') ? 'active' : ''; ?>">
+                <a href="<?php echo BASE_URL; ?>leads.php" class="nav-link <?php echo ($current_page == 'leads.php' || $current_page == 'lead_view.php' || $current_page == 'lead_add.php') ? 'active' : ''; ?>">
                     <i class="fas fa-user-group"></i> Leads
                 </a>
-                <a href="/calldesk/followups.php" class="nav-link <?php echo $current_page == 'followups.php' ? 'active' : ''; ?>">
+                <a href="<?php echo BASE_URL; ?>followups.php" class="nav-link <?php echo $current_page == 'followups.php' ? 'active' : ''; ?>">
                     <i class="fas fa-calendar-check"></i> Tasks
                 </a>
-                <a href="/calldesk/call_logs.php" class="nav-link <?php echo $current_page == 'call_logs.php' ? 'active' : ''; ?>">
+                <a href="<?php echo BASE_URL; ?>call_logs.php" class="nav-link <?php echo $current_page == 'call_logs.php' ? 'active' : ''; ?>">
                     <i class="fas fa-phone-volume"></i> Call Logs
                 </a>
-                <a href="/calldesk/docs.php" class="nav-link <?php echo $current_page == 'docs.php' ? 'active' : ''; ?>">
+                <a href="<?php echo BASE_URL; ?>docs.php" class="nav-link <?php echo $current_page == 'docs.php' ? 'active' : ''; ?>">
                     <i class="fas fa-book"></i> API Documentation
                 </a>
                 
                 <?php if (isAdmin()): ?>
                 <div style="margin: 1.5rem 0 0.5rem 1rem; font-size: 0.625rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em;">Management</div>
-                <a href="/calldesk/sources.php" class="nav-link <?php echo $current_page == 'sources.php' ? 'active' : ''; ?>">
+                <a href="<?php echo BASE_URL; ?>sources.php" class="nav-link <?php echo $current_page == 'sources.php' ? 'active' : ''; ?>">
                     <i class="fas fa-tags"></i> Lead Sources
                 </a>
-                <a href="/calldesk/users.php" class="nav-link <?php echo $current_page == 'users.php' ? 'active' : ''; ?>">
+                <a href="<?php echo BASE_URL; ?>users.php" class="nav-link <?php echo $current_page == 'users.php' ? 'active' : ''; ?>">
                     <i class="fas fa-user-shield"></i> Team
                 </a>
-                <a href="/calldesk/reports.php" class="nav-link <?php echo $current_page == 'reports.php' ? 'active' : ''; ?>">
+                <a href="<?php echo BASE_URL; ?>reports.php" class="nav-link <?php echo $current_page == 'reports.php' ? 'active' : ''; ?>">
                     <i class="fas fa-file-invoice"></i> Reports
                 </a>
                 <?php endif; ?>
             </nav>
 
             <div style="margin-top: auto;">
-                <a href="/calldesk/logout.php" class="nav-link" style="color: var(--danger);">
+                <a href="<?php echo BASE_URL; ?>logout.php" class="nav-link" style="color: var(--danger);">
                     <i class="fas fa-arrow-right-from-bracket"></i> Sign out
                 </a>
             </div>
@@ -91,7 +91,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 
                 <div style="display: flex; align-items: center; gap: 1.25rem;">
                     <?php if ($notif_count > 0): ?>
-                    <a href="/calldesk/followups.php" style="position: relative; color: var(--text-muted); padding: 0.5rem; border-radius: 8px; background: #fff; border: 1px solid var(--border);">
+                    <a href="<?php echo BASE_URL; ?>followups.php" style="position: relative; color: var(--text-muted); padding: 0.5rem; border-radius: 8px; background: #fff; border: 1px solid var(--border);">
                         <i class="fas fa-bell"></i>
                         <span style="position: absolute; top: -5px; right: -5px; background: var(--danger); color: white; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 0.625rem; font-weight: 700; border: 2px solid white;">
                             <?php echo $notif_count; ?>
