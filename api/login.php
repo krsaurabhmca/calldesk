@@ -24,7 +24,10 @@ if (empty($mobile) || empty($password)) {
     sendResponse(false, 'Mobile and password are required', null, 400);
 }
 
-$sql = "SELECT * FROM users WHERE mobile = '$mobile'";
+$sql = "SELECT u.*, o.name as organization_name 
+        FROM users u 
+        LEFT JOIN organizations o ON u.organization_id = o.id 
+        WHERE u.mobile = '$mobile'";
 $result = mysqli_query($conn, $sql);
 
 if ($result && mysqli_num_rows($result) === 1) {
@@ -46,6 +49,8 @@ if ($result && mysqli_num_rows($result) === 1) {
             'token' => $token,
             'user' => [
                 'id' => $user['id'],
+                'organization_id' => $user['organization_id'],
+                'organization_name' => $user['organization_name'],
                 'name' => $user['name'],
                 'role' => $user['role']
             ]

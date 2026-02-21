@@ -8,12 +8,12 @@ $lead_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $user_id = $_SESSION['user_id'];
 $role = $_SESSION['role'];
 
-// Fetch Lead Details
+$org_id = getOrgId();
 $sql = "SELECT l.*, u.name as executive_name, s.source_name 
         FROM leads l 
         LEFT JOIN users u ON l.assigned_to = u.id 
         LEFT JOIN lead_sources s ON l.source_id = s.id
-        WHERE l.id = $lead_id";
+        WHERE l.id = $lead_id AND l.organization_id = $org_id";
 if ($role !== 'admin') {
     $sql .= " AND l.assigned_to = $user_id";
 }
@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_followup'])) {
     $new_status = mysqli_real_escape_string($conn, $_POST['status']);
 
     // Insert follow-up
-    mysqli_query($conn, "INSERT INTO follow_ups (lead_id, executive_id, remark, next_follow_up_date) VALUES ($lead_id, $user_id, '$remark', '$next_date')");
+    mysqli_query($conn, "INSERT INTO follow_ups (organization_id, lead_id, executive_id, remark, next_follow_up_date) VALUES ($org_id, $lead_id, $user_id, '$remark', '$next_date')");
     
     // Update lead status
     mysqli_query($conn, "UPDATE leads SET status = '$new_status', remarks = '$remark' WHERE id = $lead_id");
@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_followup'])) {
 }
 
 // Fetch Follow-up History
-$history_res = mysqli_query($conn, "SELECT f.*, u.name as executive_name FROM follow_ups f JOIN users u ON f.executive_id = u.id WHERE f.lead_id = $lead_id ORDER BY f.created_at DESC");
+$history_res = mysqli_query($conn, "SELECT f.*, u.name as executive_name FROM follow_ups f JOIN users u ON f.executive_id = u.id JOIN leads l ON f.lead_id = l.id WHERE f.lead_id = $lead_id AND l.organization_id = $org_id ORDER BY f.created_at DESC");
 
 include 'includes/header.php';
 ?>

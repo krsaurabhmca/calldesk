@@ -9,7 +9,8 @@ $user_id = $_SESSION['user_id'];
 $role = $_SESSION['role'];
 
 // Fetch Lead Details
-$sql = "SELECT * FROM leads WHERE id = $lead_id";
+$org_id = getOrgId();
+$sql = "SELECT * FROM leads WHERE id = $lead_id AND organization_id = $org_id";
 if ($role !== 'admin') {
     $sql .= " AND assigned_to = $user_id";
 }
@@ -37,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             status = '$status', 
             assigned_to = $assigned_to, 
             remarks = '$remarks' 
-            WHERE id = $lead_id";
+            WHERE id = $lead_id AND organization_id = $org_id";
     
     if (mysqli_query($conn, $sql)) {
         header("Location: lead_view.php?id=$lead_id&success=1");
@@ -47,8 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$users_result = mysqli_query($conn, "SELECT id, name FROM users WHERE status = 1 ORDER BY name ASC");
-$sources_result = mysqli_query($conn, "SELECT id, source_name FROM lead_sources ORDER BY source_name ASC");
+$users_result = mysqli_query($conn, "SELECT id, name FROM users WHERE organization_id = $org_id AND status = 1 ORDER BY name ASC");
+$sources_result = mysqli_query($conn, "SELECT id, source_name FROM lead_sources WHERE organization_id = $org_id ORDER BY source_name ASC");
 
 include 'includes/header.php';
 ?>

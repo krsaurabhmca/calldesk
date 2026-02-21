@@ -5,6 +5,7 @@ require_once 'includes/auth.php';
 checkAuth();
 
 $user_id = $_SESSION['user_id'];
+$org_id = getOrgId();
 $role = $_SESSION['role'];
 
 // Fetch Stats
@@ -15,24 +16,24 @@ $stats = [
 ];
 
 if ($role === 'admin') {
-    $res = mysqli_query($conn, "SELECT COUNT(*) as count FROM leads");
+    $res = mysqli_query($conn, "SELECT COUNT(*) as count FROM leads WHERE organization_id = $org_id");
     $stats['total_leads'] = mysqli_fetch_assoc($res)['count'] ?? 0;
 
     $today = date('Y-m-d');
-    $res = mysqli_query($conn, "SELECT COUNT(DISTINCT lead_id) as count FROM follow_ups WHERE next_follow_up_date = '$today'");
+    $res = mysqli_query($conn, "SELECT COUNT(DISTINCT f.lead_id) as count FROM follow_ups f JOIN leads l ON f.lead_id = l.id WHERE l.organization_id = $org_id AND f.next_follow_up_date = '$today'");
     $stats['today_followups'] = mysqli_fetch_assoc($res)['count'] ?? 0;
 
-    $res = mysqli_query($conn, "SELECT COUNT(*) as count FROM leads WHERE status = 'Converted'");
+    $res = mysqli_query($conn, "SELECT COUNT(*) as count FROM leads WHERE organization_id = $org_id AND status = 'Converted'");
     $stats['converted_leads'] = mysqli_fetch_assoc($res)['count'] ?? 0;
 } else {
-    $res = mysqli_query($conn, "SELECT COUNT(*) as count FROM leads WHERE assigned_to = $user_id");
+    $res = mysqli_query($conn, "SELECT COUNT(*) as count FROM leads WHERE organization_id = $org_id AND assigned_to = $user_id");
     $stats['total_leads'] = mysqli_fetch_assoc($res)['count'] ?? 0;
 
     $today = date('Y-m-d');
-    $res = mysqli_query($conn, "SELECT COUNT(DISTINCT f.lead_id) as count FROM follow_ups f JOIN leads l ON f.lead_id = l.id WHERE l.assigned_to = $user_id AND f.next_follow_up_date = '$today'");
+    $res = mysqli_query($conn, "SELECT COUNT(DISTINCT f.lead_id) as count FROM follow_ups f JOIN leads l ON f.lead_id = l.id WHERE l.organization_id = $org_id AND l.assigned_to = $user_id AND f.next_follow_up_date = '$today'");
     $stats['today_followups'] = mysqli_fetch_assoc($res)['count'] ?? 0;
 
-    $res = mysqli_query($conn, "SELECT COUNT(*) as count FROM leads WHERE assigned_to = $user_id AND status = 'Converted'");
+    $res = mysqli_query($conn, "SELECT COUNT(*) as count FROM leads WHERE organization_id = $org_id AND assigned_to = $user_id AND status = 'Converted'");
     $stats['converted_leads'] = mysqli_fetch_assoc($res)['count'] ?? 0;
 }
 
@@ -113,7 +114,7 @@ include 'includes/header.php';
                                     SUM(c.duration) as total_duration
                                     FROM users u 
                                     LEFT JOIN call_logs c ON u.id = c.executive_id 
-                                    WHERE u.role = 'executive'
+                                    WHERE u.role = 'executive' AND u.organization_id = $org_id
                                     GROUP BY u.id";
                         $perf_res = mysqli_query($conn, $perf_sql);
                         while ($p = mysqli_fetch_assoc($perf_res)):
@@ -167,7 +168,7 @@ include 'includes/header.php';
                     </thead>
                     <tbody>
                         <?php
-                        $sql = "SELECT l.*, u.name as executive_name FROM leads l LEFT JOIN users u ON l.assigned_to = u.id " . ($role !== 'admin' ? "WHERE l.assigned_to = $user_id " : "") . "ORDER BY l.id DESC LIMIT 5";
+                        $sql = "SELECT l.*, u.name as executive_name FROM leads l LEFT JOIN users u ON l.assigned_to = u.id WHERE l.organization_id = $org_id " . ($role !== 'admin' ? "AND l.assigned_to = $user_id " : "") . "ORDER BY l.id DESC LIMIT 5";
                         $result = mysqli_query($conn, $sql);
                         while ($row = mysqli_fetch_assoc($result)):
                         ?>
@@ -229,9 +230,9 @@ include 'includes/header.php';
             <div style="display: flex; flex-direction: column; gap: 1rem;">
                 <?php
                 if ($role === 'admin') {
-                    $task_sql = "SELECT l.name, f.remark, f.next_follow_up_date FROM follow_ups f JOIN leads l ON f.lead_id = l.id WHERE f.next_follow_up_date >= '$today' ORDER BY f.next_follow_up_date ASC LIMIT 3";
+                    $task_sql = "SELECT l.name, f.remark, f.next_follow_up_date FROM follow_ups f JOIN leads l ON f.lead_id = l.id WHERE l.organization_id = $org_id AND f.next_follow_up_date >= '$today' ORDER BY f.next_follow_up_date ASC LIMIT 3";
                 } else {
-                    $task_sql = "SELECT l.name, f.remark, f.next_follow_up_date FROM follow_ups f JOIN leads l ON f.lead_id = l.id WHERE l.assigned_to = $user_id AND f.next_follow_up_date >= '$today' ORDER BY f.next_follow_up_date ASC LIMIT 3";
+                    $task_sql = "SELECT l.name, f.remark, f.next_follow_up_date FROM follow_ups f JOIN leads l ON f.lead_id = l.id WHERE l.organization_id = $org_id AND l.assigned_to = $user_id AND f.next_follow_up_date >= '$today' ORDER BY f.next_follow_up_date ASC LIMIT 3";
                 }
                 $task_res = mysqli_query($conn, $task_sql);
                 while ($t = mysqli_fetch_assoc($task_res)):

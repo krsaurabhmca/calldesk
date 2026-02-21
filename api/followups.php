@@ -4,11 +4,12 @@ require_once 'auth_check.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $executive_id = $auth_user['id'];
+$org_id = $auth_user['organization_id'];
 $role = $auth_user['role'];
 
 if ($method === 'GET') {
     // List followups with filters
-    $where = "f.is_completed = 0"; // Default: only show pending
+    $where = "l.organization_id = $org_id AND f.is_completed = 0"; // Default: only show pending
     
     // Role check
     if ($role !== 'admin') {
@@ -67,9 +68,14 @@ if ($lead_id <= 0 || empty($remark)) {
 
 // Check if lead belongs to executive or if admin
 if ($auth_user['role'] !== 'admin') {
-    $check = mysqli_query($conn, "SELECT id FROM leads WHERE id = $lead_id AND assigned_to = $executive_id");
+    $check = mysqli_query($conn, "SELECT id FROM leads WHERE id = $lead_id AND assigned_to = $executive_id AND organization_id = $org_id");
     if (mysqli_num_rows($check) === 0) {
         sendResponse(false, 'Permission denied: Lead not assigned to you', null, 403);
+    }
+} else {
+    $check = mysqli_query($conn, "SELECT id FROM leads WHERE id = $lead_id AND organization_id = $org_id");
+    if (mysqli_num_rows($check) === 0) {
+        sendResponse(false, 'Permission denied: Lead not in your organization', null, 403);
     }
 }
 
@@ -78,16 +84,16 @@ mysqli_begin_transaction($conn);
 
 try {
     // 1. Mark previous follow-ups for this lead as completed
-    mysqli_query($conn, "UPDATE follow_ups SET is_completed = 1 WHERE lead_id = $lead_id");
+    mysqli_query($conn, "UPDATE follow_ups f JOIN leads l ON f.lead_id = l.id SET f.is_completed = 1 WHERE f.lead_id = $lead_id AND l.organization_id = $org_id");
 
     // 2. Insert New Follow-up
-    $sql = "INSERT INTO follow_ups (lead_id, executive_id, remark, next_follow_up_date) 
-            VALUES ($lead_id, $executive_id, '$remark', " . ($next_date ? "'$next_date'" : "NULL") . ")";
+    $sql = "INSERT INTO follow_ups (organization_id, lead_id, executive_id, remark, next_follow_up_date) 
+            VALUES ($org_id, $lead_id, $executive_id, '$remark', " . ($next_date ? "'$next_date'" : "NULL") . ")";
     mysqli_query($conn, $sql);
 
     // 3. Update Lead Status if provided
     if ($status) {
-        mysqli_query($conn, "UPDATE leads SET status = '$status' WHERE id = $lead_id");
+        mysqli_query($conn, "UPDATE leads SET status = '$status' WHERE id = $lead_id AND organization_id = $org_id");
     }
 
     mysqli_commit($conn);

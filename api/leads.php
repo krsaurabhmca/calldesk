@@ -4,6 +4,7 @@ require_once 'auth_check.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $executive_id = $auth_user['id'];
+$org_id = $auth_user['organization_id'];
 $role = $auth_user['role'];
 
 if ($method === 'GET') {
@@ -14,7 +15,7 @@ if ($method === 'GET') {
         if ($role !== 'admin') {
             sendResponse(false, 'Unauthorized', null, 403);
         }
-        $sql = "SELECT id, name FROM users WHERE role = 'executive' AND status = 1";
+        $sql = "SELECT id, name FROM users WHERE organization_id = $org_id AND role = 'executive' AND status = 1";
         $result = mysqli_query($conn, $sql);
         $executives = [];
         while ($row = mysqli_fetch_assoc($result)) {
@@ -24,7 +25,7 @@ if ($method === 'GET') {
 
     } else {
         // List leads
-        $where = ($role === 'admin') ? "1=1" : "assigned_to = $executive_id";
+        $where = ($role === 'admin') ? "l.organization_id = $org_id" : "l.organization_id = $org_id AND assigned_to = $executive_id";
         $search = mysqli_real_escape_string($conn, $_REQUEST['search'] ?? '');
         if ($search) {
             $where .= " AND (name LIKE '%$search%' OR mobile LIKE '%$search%')";
@@ -68,7 +69,7 @@ if ($method === 'GET') {
             sendResponse(false, 'Invalid Lead IDs', null, 400);
         }
 
-        $sql = "UPDATE leads SET assigned_to = $assigned_to WHERE id IN ($sanitized_ids)";
+        $sql = "UPDATE leads SET assigned_to = $assigned_to WHERE id IN ($sanitized_ids) AND organization_id = $org_id";
         
         if (mysqli_query($conn, $sql)) {
              sendResponse(true, 'Leads assigned successfully');
@@ -87,8 +88,8 @@ if ($method === 'GET') {
             sendResponse(false, 'Name and Mobile are required', null, 400);
         }
         
-        $sql = "INSERT INTO leads (name, mobile, source_id, assigned_to, remarks) 
-                VALUES ('$name', '$mobile', " . ($source_id ?: "NULL") . ", $executive_id, '$remarks')";
+        $sql = "INSERT INTO leads (organization_id, name, mobile, source_id, assigned_to, remarks) 
+                VALUES ($org_id, '$name', '$mobile', " . ($source_id ?: "NULL") . ", $executive_id, '$remarks')";
                 
         if (mysqli_query($conn, $sql)) {
             sendResponse(true, 'Lead added successfully', ['id' => mysqli_insert_id($conn)]);

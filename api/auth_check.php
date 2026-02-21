@@ -47,7 +47,7 @@ if (empty($token)) {
 }
 
 $token = mysqli_real_escape_string($conn, $token);
-$user_sql = "SELECT id, name, role FROM users WHERE api_token = '$token' AND status = 1";
+$user_sql = "SELECT id, name, role, organization_id FROM users WHERE api_token = '$token' AND status = 1";
 $user_res = mysqli_query($conn, $user_sql);
 
 if (!$user_res || mysqli_num_rows($user_res) === 0) {

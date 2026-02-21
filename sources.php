@@ -8,10 +8,11 @@ $message = '';
 $error = '';
 
 // Handle Add/Edit/Delete
+$org_id = getOrgId();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['add_source'])) {
         $name = mysqli_real_escape_string($conn, $_POST['source_name']);
-        if (mysqli_query($conn, "INSERT INTO lead_sources (source_name) VALUES ('$name')")) {
+        if (mysqli_query($conn, "INSERT INTO lead_sources (organization_id, source_name) VALUES ($org_id, '$name')")) {
             $message = "Source added successfully!";
         } else {
             $error = "Duplicate or invalid source name.";
@@ -20,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if (isset($_POST['delete_source'])) {
         $id = (int)$_POST['source_id'];
-        if (mysqli_query($conn, "DELETE FROM lead_sources WHERE id = $id")) {
+        if (mysqli_query($conn, "DELETE FROM lead_sources WHERE id = $id AND organization_id = $org_id")) {
             $message = "Source deleted successfully!";
         } else {
             $error = "Cannot delete source. It might be linked to existing leads.";
@@ -28,7 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$sources = mysqli_query($conn, "SELECT * FROM lead_sources ORDER BY source_name ASC");
+$org_id = getOrgId();
+$sources = mysqli_query($conn, "SELECT * FROM lead_sources WHERE organization_id = $org_id ORDER BY source_name ASC");
 
 include 'includes/header.php';
 ?>

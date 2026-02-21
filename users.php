@@ -13,18 +13,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $mobile = mysqli_real_escape_string($conn, $_POST['mobile']);
     $role = mysqli_real_escape_string($conn, $_POST['role']);
     $user_id = isset($_POST['user_id']) ? (int)$_POST['user_id'] : 0;
+    $org_id = getOrgId();
 
     if ($user_id > 0) {
         // Edit
-        $sql = "UPDATE users SET name = '$name', mobile = '$mobile', role = '$role' WHERE id = $user_id";
         if (!empty($_POST['password'])) {
             $pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
-            $sql = "UPDATE users SET name = '$name', mobile = '$mobile', role = '$role', password = '$pass' WHERE id = $user_id";
+            $sql = "UPDATE users SET name = '$name', mobile = '$mobile', role = '$role', password = '$pass' WHERE id = $user_id AND organization_id = $org_id";
+        } else {
+            $sql = "UPDATE users SET name = '$name', mobile = '$mobile', role = '$role' WHERE id = $user_id AND organization_id = $org_id";
         }
     } else {
         // Add
         $pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
-        $sql = "INSERT INTO users (name, mobile, password, role) VALUES ('$name', '$mobile', '$pass', '$role')";
+        $sql = "INSERT INTO users (organization_id, name, mobile, password, role) VALUES ($org_id, '$name', '$mobile', '$pass', '$role')";
     }
 
     if (mysqli_query($conn, $sql)) {
@@ -34,7 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$sql = "SELECT * FROM users ORDER BY name ASC";
+$org_id = getOrgId();
+$sql = "SELECT * FROM users WHERE organization_id = $org_id ORDER BY name ASC";
 $result = mysqli_query($conn, $sql);
 
 include 'includes/header.php';

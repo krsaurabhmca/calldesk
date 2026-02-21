@@ -6,7 +6,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     sendResponse(false, 'Invalid request method', null, 405);
 }
 
-$sql = "SELECT id, source_name FROM lead_sources ORDER BY source_name ASC";
+$org_id = $auth_user['organization_id'];
+$sql = "SELECT id, source_name FROM lead_sources WHERE organization_id = $org_id ORDER BY source_name ASC";
 $result = mysqli_query($conn, $sql);
 $sources = [];
 while ($row = mysqli_fetch_assoc($result)) {

@@ -8,7 +8,8 @@ $user_id = $_SESSION['user_id'];
 $role = $_SESSION['role'];
 $today = date('Y-m-d');
 
-$where = "WHERE f.next_follow_up_date IS NOT NULL";
+$org_id = getOrgId();
+$where = "WHERE l.organization_id = $org_id AND f.next_follow_up_date IS NOT NULL";
 if ($role !== 'admin') {
     $where .= " AND l.assigned_to = $user_id";
 }

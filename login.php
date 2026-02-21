@@ -16,7 +16,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Debug: echo "Mobile: [$mobile]"; // Comment this out after testing
 
-    $sql = "SELECT * FROM users WHERE mobile = '$mobile'";
+    $sql = "SELECT u.*, o.name as organization_name 
+            FROM users u 
+            LEFT JOIN organizations o ON u.organization_id = o.id 
+            WHERE u.mobile = '$mobile'";
     $result = mysqli_query($conn, $sql);
 
     if ($result && mysqli_num_rows($result) === 1) {
@@ -29,6 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Verify password
             if (password_verify($password, $user['password'])) {
                 $_SESSION['user_id'] = $user['id'];
+                $_SESSION['organization_id'] = $user['organization_id'];
+                $_SESSION['organization_name'] = $user['organization_name'];
                 $_SESSION['name'] = $user['name'];
                 $_SESSION['role'] = $user['role'];
                 redirect('index.php');
@@ -112,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <button type="submit" class="btn btn-primary" style="width: 100%;">Sign in to account</button>
                     
                     <div style="text-align: center; margin-top: 1.5rem;">
-                        <span style="font-size: 0.875rem; color: var(--text-muted);">Don't have an account? <a href="#" style="color: var(--primary); font-weight: 600; text-decoration: none;">Request Access</a></span>
+                        <span style="font-size: 0.875rem; color: var(--text-muted);">Don't have an account? <a href="signup.php" style="color: var(--primary); font-weight: 600; text-decoration: none;">Register Organization</a></span>
                     </div>
                 </form>
             </div>

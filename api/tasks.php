@@ -8,7 +8,8 @@ $today = date('Y-m-d');
 
 $filter = $_REQUEST['filter'] ?? 'all'; // 'today', 'upcoming', 'all'
 
-$where = ($role === 'admin') ? "1=1" : "f.executive_id = $executive_id";
+$org_id = $auth_user['organization_id'];
+$where = ($role === 'admin') ? "l.organization_id = $org_id" : "l.organization_id = $org_id AND f.executive_id = $executive_id";
 
 if ($filter === 'today') {
     $where .= " AND f.next_follow_up_date = '$today'";

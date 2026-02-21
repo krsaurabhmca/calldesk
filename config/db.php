@@ -2,7 +2,7 @@
 // config/db.php
 
 // Auto-detect environment
-$is_local = ($_SERVER['HTTP_HOST'] === 'localhost' || $_SERVER['REMOTE_ADDR'] === '127.0.0.1');
+$is_local = (php_sapi_name() === 'cli' || ($_SERVER['HTTP_HOST'] ?? '') === 'localhost' || ($_SERVER['REMOTE_ADDR'] ?? '') === '127.0.0.1');
 
 if ($is_local) {
     // Local Settings (XAMPP)

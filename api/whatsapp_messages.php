@@ -3,9 +3,10 @@
 require_once 'auth_check.php';
 
 $executive_id = $auth_user['id'];
+$org_id = $auth_user['organization_id'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $sql = "SELECT * FROM whatsapp_messages WHERE executive_id = $executive_id ORDER BY id DESC";
+    $sql = "SELECT * FROM whatsapp_messages WHERE executive_id = $executive_id AND organization_id = $org_id ORDER BY id DESC";
     $result = mysqli_query($conn, $sql);
     $messages = [];
     while ($row = mysqli_fetch_assoc($result)) {
@@ -25,10 +26,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
 
         if ($is_default) {
-            mysqli_query($conn, "UPDATE whatsapp_messages SET is_default = 0 WHERE executive_id = $executive_id");
+            mysqli_query($conn, "UPDATE whatsapp_messages SET is_default = 0 WHERE executive_id = $executive_id AND organization_id = $org_id");
         }
 
-        $sql = "INSERT INTO whatsapp_messages (executive_id, title, message, is_default) VALUES ($executive_id, '$title', '$message', $is_default)";
+        $sql = "INSERT INTO whatsapp_messages (organization_id, executive_id, title, message, is_default) VALUES ($org_id, $executive_id, '$title', '$message', $is_default)";
         if (mysqli_query($conn, $sql)) {
             sendResponse(true, 'Message saved');
         } else {
@@ -37,13 +38,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     } elseif ($action === 'set_default') {
         $id = (int)($_POST['id'] ?? 0);
-        mysqli_query($conn, "UPDATE whatsapp_messages SET is_default = 0 WHERE executive_id = $executive_id");
-        mysqli_query($conn, "UPDATE whatsapp_messages SET is_default = 1 WHERE id = $id AND executive_id = $executive_id");
+        mysqli_query($conn, "UPDATE whatsapp_messages SET is_default = 0 WHERE executive_id = $executive_id AND organization_id = $org_id");
+        mysqli_query($conn, "UPDATE whatsapp_messages SET is_default = 1 WHERE id = $id AND executive_id = $executive_id AND organization_id = $org_id");
         sendResponse(true, 'Default message updated');
 
     } elseif ($action === 'delete') {
         $id = (int)($_POST['id'] ?? 0);
-        mysqli_query($conn, "DELETE FROM whatsapp_messages WHERE id = $id AND executive_id = $executive_id");
+        mysqli_query($conn, "DELETE FROM whatsapp_messages WHERE id = $id AND executive_id = $executive_id AND organization_id = $org_id");
         sendResponse(true, 'Message deleted');
     }
 }

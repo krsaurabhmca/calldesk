@@ -16,6 +16,7 @@ if (!is_array($data)) {
 
 $synced_count = 0;
 $executive_id = $auth_user['id'];
+$org_id = $auth_user['organization_id'];
 
 foreach ($data as $call) {
     $mobile = mysqli_real_escape_string($conn, $call['mobile'] ?? '');
@@ -26,14 +27,14 @@ foreach ($data as $call) {
     if (empty($mobile) || empty($type) || empty($call_time)) continue;
 
     // Check if lead exists
-    $lead_res = mysqli_query($conn, "SELECT id FROM leads WHERE mobile = '$mobile'");
+    $lead_res = mysqli_query($conn, "SELECT id FROM leads WHERE mobile = '$mobile' AND organization_id = $org_id");
     $lead_id = (mysqli_num_rows($lead_res) > 0) ? mysqli_fetch_assoc($lead_res)['id'] : "NULL";
     
     // Check for duplicate (same number and exact time)
-    $check = mysqli_query($conn, "SELECT id FROM call_logs WHERE mobile = '$mobile' AND call_time = '$call_time'");
+    $check = mysqli_query($conn, "SELECT id FROM call_logs WHERE mobile = '$mobile' AND call_time = '$call_time' AND organization_id = $org_id");
     if (mysqli_num_rows($check) == 0) {
-        $sql = "INSERT INTO call_logs (mobile, type, duration, call_time, lead_id, executive_id) 
-                VALUES ('$mobile', '$type', $duration, '$call_time', $lead_id, $executive_id)";
+        $sql = "INSERT INTO call_logs (organization_id, mobile, type, duration, call_time, lead_id, executive_id) 
+                VALUES ($org_id, '$mobile', '$type', $duration, '$call_time', $lead_id, $executive_id)";
         if (mysqli_query($conn, $sql)) {
             $synced_count++;
         }

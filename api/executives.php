@@ -10,7 +10,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     sendResponse(false, 'Invalid request method', null, 405);
 }
 
-$sql = "SELECT id, name, mobile FROM users WHERE role = 'executive' AND status = 1 ORDER BY name ASC";
+$org_id = $auth_user['organization_id'];
+$sql = "SELECT id, name, mobile FROM users WHERE organization_id = $org_id AND role = 'executive' AND status = 1 ORDER BY name ASC";
 $result = mysqli_query($conn, $sql);
 $execs = [];
 

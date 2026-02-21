@@ -10,7 +10,8 @@ $role = $_SESSION['role'];
 $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
 $status_filter = isset($_GET['status']) ? mysqli_real_escape_string($conn, $_GET['status']) : '';
 
-$where = "WHERE 1=1";
+$org_id = getOrgId();
+$where = "WHERE l.organization_id = $org_id";
 if ($role !== 'admin') {
     $where .= " AND assigned_to = $user_id";
 }

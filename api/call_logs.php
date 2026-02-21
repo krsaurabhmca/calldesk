@@ -6,10 +6,12 @@ $method = $_SERVER['REQUEST_METHOD'];
 $user_id = $auth_user['id'];
 $role = $auth_user['role'];
 
+$org_id = $auth_user['organization_id'];
+
 // Only allow executives to see their own logs or admin everything
-$where = "1=1";
+$where = "c.organization_id = $org_id";
 if ($role !== 'admin') {
-    $where .= " AND (c.executive_id = $user_id OR c.executive_id IS NULL)";
+    $where .= " AND c.executive_id = $user_id";
 }
 
 // Search Filter (Name or Mobile)

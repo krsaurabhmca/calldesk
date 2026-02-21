@@ -11,6 +11,7 @@ $prefill_mobile = isset($_GET['mobile']) ? $_GET['mobile'] : '';
 $call_id = isset($_GET['call_id']) ? (int)$_GET['call_id'] : 0;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $org_id = getOrgId();
     $name = mysqli_real_escape_string($conn, $_POST['name']);
     $mobile = mysqli_real_escape_string($conn, $_POST['mobile']);
     $source_id = !empty($_POST['source_id']) ? (int)$_POST['source_id'] : "NULL";
@@ -18,15 +19,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $assigned_to = !empty($_POST['assigned_to']) ? (int)$_POST['assigned_to'] : "NULL";
     $remarks = mysqli_real_escape_string($conn, $_POST['remarks']);
 
-    $sql = "INSERT INTO leads (name, mobile, source_id, status, assigned_to, remarks) 
-            VALUES ('$name', '$mobile', $source_id, '$status', $assigned_to, '$remarks')";
+    $sql = "INSERT INTO leads (organization_id, name, mobile, source_id, status, assigned_to, remarks) 
+            VALUES ($org_id, '$name', '$mobile', $source_id, '$status', $assigned_to, '$remarks')";
     
     if (mysqli_query($conn, $sql)) {
         $new_lead_id = mysqli_insert_id($conn);
         
         // If coming from call log, link it
         if ($call_id > 0) {
-            mysqli_query($conn, "UPDATE call_logs SET lead_id = $new_lead_id, is_converted = 1 WHERE id = $call_id");
+            mysqli_query($conn, "UPDATE call_logs SET lead_id = $new_lead_id, is_converted = 1 WHERE id = $call_id AND organization_id = $org_id");
         }
         
         header("Location: leads.php?success=1");
@@ -36,8 +37,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$users_result = mysqli_query($conn, "SELECT id, name FROM users WHERE status = 1 ORDER BY name ASC");
-$sources_result = mysqli_query($conn, "SELECT id, source_name FROM lead_sources ORDER BY source_name ASC");
+$org_id = getOrgId();
+$users_result = mysqli_query($conn, "SELECT id, name FROM users WHERE organization_id = $org_id AND status = 1 ORDER BY name ASC");
+$sources_result = mysqli_query($conn, "SELECT id, source_name FROM lead_sources WHERE organization_id = $org_id ORDER BY source_name ASC");
 
 include 'includes/header.php';
 ?>

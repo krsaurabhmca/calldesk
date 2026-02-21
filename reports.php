@@ -8,7 +8,8 @@ $status_filter = isset($_GET['status']) ? mysqli_real_escape_string($conn, $_GET
 $start_date = isset($_GET['start_date']) ? mysqli_real_escape_string($conn, $_GET['start_date']) : '';
 $end_date = isset($_GET['end_date']) ? mysqli_real_escape_string($conn, $_GET['end_date']) : '';
 
-$where = "WHERE 1=1";
+$org_id = getOrgId();
+$where = "WHERE l.organization_id = $org_id";
 if ($status_filter) {
     $where .= " AND l.status = '$status_filter'";
 }
@@ -19,7 +20,11 @@ if ($end_date) {
     $where .= " AND DATE(l.created_at) <= '$end_date'";
 }
 
-$sql = "SELECT l.*, u.name as executive_name FROM leads l LEFT JOIN users u ON l.assigned_to = u.id $where ORDER BY l.id DESC";
+$sql = "SELECT l.*, u.name as executive_name, s.source_name 
+        FROM leads l 
+        LEFT JOIN users u ON l.assigned_to = u.id 
+        LEFT JOIN lead_sources s ON l.source_id = s.id 
+        $where ORDER BY l.id DESC";
 $result = mysqli_query($conn, $sql);
 
 include 'includes/header.php';
@@ -75,7 +80,7 @@ include 'includes/header.php';
                 <tr>
                     <td><strong><?php echo $row['name']; ?></strong></td>
                     <td><?php echo $row['mobile']; ?></td>
-                    <td><?php echo $row['source']; ?></td>
+                    <td><?php echo $row['source_name'] ?: 'N/A'; ?></td>
                     <td><span class="badge badge-<?php echo strtolower(str_replace(' ', '', $row['status'])); ?>"><?php echo $row['status']; ?></span></td>
                     <td><?php echo $row['executive_name'] ?: 'Unassigned'; ?></td>
                     <td><?php echo date('d M, Y', strtotime($row['created_at'])); ?></td>

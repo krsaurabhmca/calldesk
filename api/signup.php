@@ -21,8 +21,10 @@ $name = mysqli_real_escape_string($conn, $_POST['name'] ?? '');
 $mobile = mysqli_real_escape_string($conn, $_POST['mobile'] ?? '');
 $password = $_POST['password'] ?? '';
 
-if (empty($name) || empty($mobile) || empty($password)) {
-    sendResponse(false, 'Name, mobile, and password are required', null, 400);
+$org_id = (int)($_POST['organization_id'] ?? 0);
+
+if (empty($name) || empty($mobile) || empty($password) || $org_id <= 0) {
+    sendResponse(false, 'Name, mobile, password, and organization_id are required', null, 400);
 }
 
 // Check if user already exists
@@ -39,7 +41,7 @@ $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 $token = bin2hex(random_bytes(32));
 
 // Insert new executive
-$sql = "INSERT INTO users (name, mobile, password, role, status, api_token) VALUES ('$name', '$mobile', '$hashed_password', 'executive', 1, '$token')";
+$sql = "INSERT INTO users (organization_id, name, mobile, password, role, status, api_token) VALUES ($org_id, '$name', '$mobile', '$hashed_password', 'executive', 1, '$token')";
 
 if (mysqli_query($conn, $sql)) {
     $user_id = mysqli_insert_id($conn);

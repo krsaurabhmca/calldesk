@@ -13,12 +13,16 @@ if ($lead_id <= 0) {
 }
 
 // Permission check
+$org_id = $auth_user['organization_id'];
 if ($auth_user['role'] !== 'admin') {
     $executive_id = $auth_user['id'];
-    $check = mysqli_query($conn, "SELECT id FROM leads WHERE id = $lead_id AND assigned_to = $executive_id");
-    if (mysqli_num_rows($check) === 0) {
-        sendResponse(false, 'Permission denied', null, 403);
-    }
+    $check = mysqli_query($conn, "SELECT id FROM leads WHERE id = $lead_id AND assigned_to = $executive_id AND organization_id = $org_id");
+} else {
+    $check = mysqli_query($conn, "SELECT id FROM leads WHERE id = $lead_id AND organization_id = $org_id");
+}
+
+if (mysqli_num_rows($check) === 0) {
+    sendResponse(false, 'Permission denied', null, 403);
 }
 
 $sql = "SELECT f.*, u.name as executive_name 

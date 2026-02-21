@@ -3,6 +3,7 @@ require_once 'config/db.php';
 require_once 'includes/header.php';
 
 $executive_id = $_SESSION['user_id'];
+$org_id = getOrgId();
 
 // Handle Actions
 if (isset($_POST['action'])) {
@@ -12,26 +13,26 @@ if (isset($_POST['action'])) {
         $is_default = isset($_POST['is_default']) ? 1 : 0;
 
         if ($is_default) {
-            mysqli_query($conn, "UPDATE whatsapp_messages SET is_default = 0 WHERE executive_id = $executive_id");
+            mysqli_query($conn, "UPDATE whatsapp_messages SET is_default = 0 WHERE executive_id = $executive_id AND organization_id = $org_id");
         }
 
-        $sql = "INSERT INTO whatsapp_messages (executive_id, title, message, is_default) VALUES ($executive_id, '$title', '$message', $is_default)";
+        $sql = "INSERT INTO whatsapp_messages (organization_id, executive_id, title, message, is_default) VALUES ($org_id, $executive_id, '$title', '$message', $is_default)";
         mysqli_query($conn, $sql);
         echo "<script>window.location.href='messages.php';</script>";
     } elseif ($_POST['action'] === 'delete') {
         $id = (int)$_POST['id'];
-        mysqli_query($conn, "DELETE FROM whatsapp_messages WHERE id = $id AND executive_id = $executive_id");
+        mysqli_query($conn, "DELETE FROM whatsapp_messages WHERE id = $id AND executive_id = $executive_id AND organization_id = $org_id");
         echo "<script>window.location.href='messages.php';</script>";
     } elseif ($_POST['action'] === 'set_default') {
         $id = (int)$_POST['id'];
-        mysqli_query($conn, "UPDATE whatsapp_messages SET is_default = 0 WHERE executive_id = $executive_id");
-        mysqli_query($conn, "UPDATE whatsapp_messages SET is_default = 1 WHERE id = $id AND executive_id = $executive_id");
+        mysqli_query($conn, "UPDATE whatsapp_messages SET is_default = 0 WHERE executive_id = $executive_id AND organization_id = $org_id");
+        mysqli_query($conn, "UPDATE whatsapp_messages SET is_default = 1 WHERE id = $id AND executive_id = $executive_id AND organization_id = $org_id");
         echo "<script>window.location.href='messages.php';</script>";
     }
 }
 
 // Fetch Messages
-$sql = "SELECT * FROM whatsapp_messages WHERE executive_id = $executive_id ORDER BY is_default DESC, id DESC";
+$sql = "SELECT * FROM whatsapp_messages WHERE executive_id = $executive_id AND organization_id = $org_id ORDER BY is_default DESC, id DESC";
 $result = mysqli_query($conn, $sql);
 ?>
 
