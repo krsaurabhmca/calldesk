@@ -34,11 +34,24 @@ $current_page = basename($_SERVER['PHP_SELF']);
     <div class="wrapper">
         <!-- Sidebar -->
         <aside class="sidebar">
-            <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0.5rem 2rem 0.5rem;">
-                <div style="background: var(--primary); color: white; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                    <i class="fas fa-headset" style="font-size: 0.875rem;"></i>
+            <div style="padding: 0.5rem 0.75rem 2rem 0.75rem;">
+                <div style="display: flex; align-items: center; gap: 0.875rem; margin-bottom: 0.5rem;">
+                    <div style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);">
+                        <i class="fas fa-headset" style="font-size: 1rem;"></i>
+                    </div>
+                    <div style="display: flex; flex-direction: column; line-height: 1.2;">
+                        <span style="font-weight: 800; font-size: 1.25rem; color: var(--text-main); letter-spacing: -0.02em;">Calldesk</span>
+                        <span style="font-size: 0.625rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.05em;">CRM System</span>
+                    </div>
                 </div>
-                <span style="font-weight: 800; font-size: 1.125rem; color: var(--text-main);">Calldesk</span>
+                <?php if (isset($_SESSION['organization_name'])): ?>
+                <div style="background: #f8fafc; padding: 0.625rem 0.875rem; border-radius: 10px; border: 1px solid var(--border); margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-building" style="font-size: 0.75rem; color: var(--text-muted);"></i>
+                    <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        <?php echo $_SESSION['organization_name']; ?>
+                    </span>
+                </div>
+                <?php endif; ?>
             </div>
 
             <nav>
@@ -90,16 +103,16 @@ $current_page = basename($_SERVER['PHP_SELF']);
             <header class="header">
                 <div style="display: flex; align-items: center; gap: 1rem; flex: 1;">
                     <div style="position: relative; width: 100%; max-width: 400px;">
-                        <i class="fas fa-search" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.875rem;"></i>
-                        <input type="text" placeholder="Search leads, tasks..." style="width: 100%; padding: 0.625rem 1rem 0.625rem 2.5rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; background: var(--background);">
+                        <i class="fas fa-search" style="position: absolute; left: 0.875rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.75rem;"></i>
+                        <input type="text" placeholder="Search leads, tasks..." style="width: 100%; padding: 0.5rem 0.875rem 0.5rem 2.25rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.8125rem; background: var(--background);">
                     </div>
                 </div>
                 
                 <div style="display: flex; align-items: center; gap: 1.25rem;">
                     <?php if ($notif_count > 0): ?>
-                    <a href="<?php echo BASE_URL; ?>followups.php" style="position: relative; color: var(--text-muted); padding: 0.5rem; border-radius: 8px; background: #fff; border: 1px solid var(--border);">
-                        <i class="fas fa-bell"></i>
-                        <span style="position: absolute; top: -5px; right: -5px; background: var(--danger); color: white; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 0.625rem; font-weight: 700; border: 2px solid white;">
+                    <a href="<?php echo BASE_URL; ?>followups.php" style="position: relative; color: var(--text-muted); padding: 0.4rem; border-radius: 6px; background: #fff; border: 1px solid var(--border);">
+                        <i class="fas fa-bell" style="font-size: 0.875rem;"></i>
+                        <span style="position: absolute; top: -4px; right: -4px; background: var(--danger); color: white; border-radius: 50%; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; font-weight: 700; border: 1.5px solid white;">
                             <?php echo $notif_count; ?>
                         </span>
                     </a>
@@ -107,16 +120,16 @@ $current_page = basename($_SERVER['PHP_SELF']);
                     
                     <div style="height: 32px; width: 1px; background: var(--border);"></div>
 
-                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="display: flex; align-items: center; gap: 0.625rem;">
                         <div style="text-align: right;">
-                            <div style="font-weight: 700; font-size: 0.8125rem; color: var(--text-main);"><?php echo $_SESSION['name']; ?></div>
-                            <div style="font-size: 0.6875rem; color: var(--text-muted); text-transform: capitalize;"><?php echo $_SESSION['role']; ?></div>
+                            <div style="font-weight: 700; font-size: 0.75rem; color: var(--text-main); line-height: 1.2;"><?php echo $_SESSION['name']; ?></div>
+                            <div style="font-size: 0.625rem; color: var(--text-muted); text-transform: capitalize;"><?php echo $_SESSION['role']; ?></div>
                         </div>
-                        <div style="width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem; box-shadow: var(--shadow-sm);">
+                        <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.75rem; box-shadow: var(--shadow-sm);">
                             <?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?>
                         </div>
                     </div>
                 </div>
             </header>
 
-            <main class="content-body" style="padding: 1.5rem 2rem;">
+            <main class="content-body" style="padding: 1rem 1.5rem;">

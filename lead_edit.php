@@ -40,11 +40,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             remarks = '$remarks' 
             WHERE id = $lead_id AND organization_id = $org_id";
     
-    if (mysqli_query($conn, $sql)) {
-        header("Location: lead_view.php?id=$lead_id&success=1");
-        exit();
-    } else {
-        $error = "Error: " . mysqli_error($conn);
+    try {
+        if (mysqli_query($conn, $sql)) {
+            header("Location: lead_view.php?id=$lead_id&success=1");
+            exit();
+        } else {
+            $error = "Failed to update lead.";
+        }
+    } catch (mysqli_sql_exception $e) {
+        if ($e->getCode() == 1062) {
+            $error = "Another lead with this mobile number already exists in your organization.";
+        } else {
+            $error = "Error: " . $e->getMessage();
+        }
     }
 }
 
@@ -55,15 +63,15 @@ include 'includes/header.php';
 ?>
 
 <div style="max-width: 800px; margin: 0 auto;">
-    <div style="display: flex; align-items: center; margin-bottom: 2rem;">
-        <a href="lead_view.php?id=<?php echo $lead_id; ?>" style="margin-right: 1rem; color: var(--text-muted);"><i class="fas fa-arrow-left"></i></a>
-        <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);">Edit Lead</h2>
+    <div style="display: flex; align-items: center; margin-bottom: 1.5rem;">
+        <a href="lead_view.php?id=<?php echo $lead_id; ?>" style="margin-right: 0.75rem; color: var(--text-muted);"><i class="fas fa-arrow-left"></i></a>
+        <h2 style="font-size: 1.125rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.01em;">Edit Lead</h2>
     </div>
 
     <?php if ($error): ?>
-        <div style="background: #fff1f2; color: #be123c; padding: 1rem; border-radius: 10px; margin-bottom: 1.5rem; border: 1px solid #fecdd3;">
-            <?php echo $error; ?>
-        </div>
+    <div style="background: #fef2f2; color: #991b1b; padding: 0.75rem 1rem; border-radius: 6px; border: 1px solid #fee2e2; margin-bottom: 1.25rem; font-size: 0.8125rem; font-weight: 600;">
+        <i class="fas fa-exclamation-circle" style="margin-right: 0.5rem;"></i> <?php echo $error; ?>
+    </div>
     <?php endif; ?>
 
     <div class="card">

@@ -36,10 +36,9 @@ $sql = "SELECT * FROM whatsapp_messages WHERE executive_id = $executive_id AND o
 $result = mysqli_query($conn, $sql);
 ?>
 
-<div class="page-header">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
     <div>
-        <h1 class="page-title">WhatsApp Templates</h1>
-        <p class="page-subtitle">Manage your saved messages for quick communication</p>
+        <h2 style="font-size: 1.125rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.01em;">WhatsApp Templates</h2>
     </div>
     <button class="btn btn-primary" onclick="document.getElementById('addModal').style.display='flex'">
         <i class="fas fa-plus"></i> New Template

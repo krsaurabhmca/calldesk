@@ -28,9 +28,8 @@ $result = mysqli_query($conn, $sql);
 include 'includes/header.php';
 ?>
 
-<div style="margin-bottom: 2rem;">
-    <h2 style="font-size: 1.5rem; font-weight: 700;">Scheduled Follow-ups</h2>
-    <p style="color: var(--secondary);">Manage your upcoming calls and meetings.</p>
+<div style="margin-bottom: 1rem;">
+    <h2 style="font-size: 1.125rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.01em;">Scheduled Follow-ups</h2>
 </div>
 
 <div class="card">

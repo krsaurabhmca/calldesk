@@ -32,24 +32,23 @@ $result = mysqli_query($conn, $sql);
 include 'includes/header.php';
 ?>
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
     <div>
-        <h2 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);">Manage Leads</h2>
-        <p style="color: var(--text-muted); font-size: 0.8125rem;">View and manage your lead pipeline.</p>
+        <h2 style="font-size: 1.125rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.01em;">Manage Leads</h2>
     </div>
-    <a href="lead_add.php" class="btn btn-primary" style="width: auto; padding: 0.625rem 1.25rem; font-size: 0.8125rem;">
-        <i class="fas fa-plus" style="margin-right: 0.5rem;"></i> Add Lead
+    <a href="lead_add.php" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Add New Lead
     </a>
 </div>
 
-<div class="card" style="padding: 1rem; border: 1px solid var(--border); box-shadow: var(--shadow-sm); margin-bottom: 1.5rem;">
-    <form method="GET" style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+<div class="card" style="padding: 0.75rem; margin-bottom: 1rem;">
+    <form method="GET" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
         <div style="flex: 1; min-width: 200px; position: relative;">
-            <i class="fas fa-filter" style="position: absolute; left: 0.875rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.75rem;"></i>
-            <input type="text" name="search" class="form-control" style="padding: 0.5rem 0.75rem 0.5rem 2.25rem; font-size: 0.875rem; background: var(--background);" placeholder="Search name or mobile..." value="<?php echo htmlspecialchars($search); ?>">
+            <i class="fas fa-search" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.75rem;"></i>
+            <input type="text" name="search" class="form-control" style="padding-left: 2rem; background: #fafbfc;" placeholder="Search name or mobile..." value="<?php echo htmlspecialchars($search); ?>">
         </div>
-        <div style="width: 180px;">
-            <select name="status" class="form-control" style="padding: 0.5rem 0.75rem; font-size: 0.875rem; background: var(--background);">
+        <div style="width: 150px;">
+            <select name="status" class="form-control" style="background: #fafbfc;">
                 <option value="">All Statuses</option>
                 <option value="New" <?php echo $status_filter == 'New' ? 'selected' : ''; ?>>New</option>
                 <option value="Follow-up" <?php echo $status_filter == 'Follow-up' ? 'selected' : ''; ?>>Follow-up</option>
@@ -58,9 +57,9 @@ include 'includes/header.php';
                 <option value="Lost" <?php echo $status_filter == 'Lost' ? 'selected' : ''; ?>>Lost</option>
             </select>
         </div>
-        <button type="submit" class="btn btn-primary" style="width: auto; padding: 0.5rem 1.25rem; font-size: 0.875rem;">Filter</button>
+        <button type="submit" class="btn btn-primary" style="padding: 0 1.25rem;">Filter</button>
         <?php if ($search || $status_filter): ?>
-            <a href="leads.php" class="btn" style="width: auto; padding: 0.5rem 1.25rem; font-size: 0.875rem; background: #f1f5f9; color: var(--text-main); text-decoration: none; display: flex; align-items: center;">Clear</a>
+            <a href="leads.php" class="btn" style="background: var(--border); color: var(--text-main); text-decoration: none;">Clear</a>
         <?php endif; ?>
     </form>
 </div>

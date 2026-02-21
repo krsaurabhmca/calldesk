@@ -40,49 +40,49 @@ if ($role === 'admin') {
 include 'includes/header.php';
 ?>
 
-<div style="margin-bottom: 2rem;">
-    <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.025em;">Dashboard</h1>
-    <p style="color: var(--text-muted); font-size: 0.9375rem;">Welcome back, <span style="color: var(--primary); font-weight: 600;"><?php echo $_SESSION['name']; ?></span>. Here's your overview for today.</p>
+<div style="margin-bottom: 1rem;">
+    <h1 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.02em;">Dashboard</h1>
+    <p style="color: var(--text-muted); font-size: 0.8125rem;">Welcome back, <span style="color: var(--primary); font-weight: 600;"><?php echo $_SESSION['name']; ?></span>.</p>
 </div>
 
 <!-- Premium Stats Cards -->
-<div class="stat-grid" style="grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2.5rem;">
-    <div class="stat-card" style="padding: 1.5rem; border: none; box-shadow: var(--shadow); background: #ffffff; position: relative; overflow: hidden;">
-        <div style="position: absolute; top: -10px; right: -10px; width: 80px; height: 80px; background: rgba(99, 102, 241, 0.05); border-radius: 50%;"></div>
-        <div class="stat-icon" style="background: rgba(99, 102, 241, 0.1); color: var(--primary); width: 44px; height: 44px; font-size: 1.25rem;">
+<div class="stat-grid" style="grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1.5rem;">
+    <div class="stat-card" style="padding: 0.875rem 1.125rem; border: none; box-shadow: var(--shadow); background: #ffffff; position: relative; overflow: hidden;">
+        <div style="position: absolute; top: -5px; right: -5px; width: 60px; height: 60px; background: rgba(79, 70, 229, 0.03); border-radius: 50%;"></div>
+        <div class="stat-icon" style="background: rgba(79, 70, 229, 0.08); color: var(--primary); width: 36px; height: 36px; font-size: 1rem;">
             <i class="fas fa-users-line"></i>
         </div>
         <div class="stat-info">
-            <h3 style="font-size: 0.8125rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Total Leads</h3>
-            <div class="value" style="font-size: 1.75rem; font-weight: 800; color: var(--text-main); line-height: 1;"><?php echo $stats['total_leads']; ?></div>
+            <h3 style="font-size: 0.6875rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; margin-bottom: 0.25rem;">Total Leads</h3>
+            <div class="value" style="font-size: 1.375rem; font-weight: 800; color: var(--text-main); line-height: 1;"><?php echo $stats['total_leads']; ?></div>
         </div>
     </div>
 
-    <div class="stat-card" style="padding: 1.5rem; border: none; box-shadow: var(--shadow); background: #ffffff; position: relative; overflow: hidden;">
-        <div style="position: absolute; top: -10px; right: -10px; width: 80px; height: 80px; background: rgba(245, 158, 11, 0.05); border-radius: 50%;"></div>
-        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--warning); width: 44px; height: 44px; font-size: 1.25rem;">
+    <div class="stat-card" style="padding: 0.875rem 1.125rem; border: none; box-shadow: var(--shadow); background: #ffffff; position: relative; overflow: hidden;">
+        <div style="position: absolute; top: -5px; right: -5px; width: 60px; height: 60px; background: rgba(245, 158, 11, 0.03); border-radius: 50%;"></div>
+        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.08); color: var(--warning); width: 36px; height: 36px; font-size: 1rem;">
             <i class="fas fa-calendar-day"></i>
         </div>
         <div class="stat-info">
-            <h3 style="font-size: 0.8125rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Tasks Today</h3>
-            <div class="value" style="font-size: 1.75rem; font-weight: 800; color: var(--text-main); line-height: 1;"><?php echo $stats['today_followups']; ?></div>
+            <h3 style="font-size: 0.6875rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; margin-bottom: 0.25rem;">Tasks Today</h3>
+            <div class="value" style="font-size: 1.375rem; font-weight: 800; color: var(--text-main); line-height: 1;"><?php echo $stats['today_followups']; ?></div>
         </div>
     </div>
 
-    <div class="stat-card" style="padding: 1.5rem; border: none; box-shadow: var(--shadow); background: #ffffff; position: relative; overflow: hidden;">
-        <div style="position: absolute; top: -10px; right: -10px; width: 80px; height: 80px; background: rgba(16, 185, 129, 0.05); border-radius: 50%;"></div>
-        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--success); width: 44px; height: 44px; font-size: 1.25rem;">
+    <div class="stat-card" style="padding: 0.875rem 1.125rem; border: none; box-shadow: var(--shadow); background: #ffffff; position: relative; overflow: hidden;">
+        <div style="position: absolute; top: -5px; right: -5px; width: 60px; height: 60px; background: rgba(16, 185, 129, 0.03); border-radius: 50%;"></div>
+        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.08); color: var(--success); width: 36px; height: 36px; font-size: 1rem;">
             <i class="fas fa-circle-check"></i>
         </div>
         <div class="stat-info">
-            <h3 style="font-size: 0.8125rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Converted</h3>
-            <div class="value" style="font-size: 1.75rem; font-weight: 800; color: var(--text-main); line-height: 1;"><?php echo $stats['converted_leads']; ?></div>
+            <h3 style="font-size: 0.6875rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; margin-bottom: 0.25rem;">Converted</h3>
+            <div class="value" style="font-size: 1.375rem; font-weight: 800; color: var(--text-main); line-height: 1;"><?php echo $stats['converted_leads']; ?></div>
         </div>
     </div>
 </div>
 
-<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
-    <div style="display: flex; flex-direction: column; gap: 2rem;">
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
         
         <!-- Admin-Only Executive Performance Section -->
         <?php if ($role === 'admin'): ?>

@@ -22,18 +22,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $sql = "INSERT INTO leads (organization_id, name, mobile, source_id, status, assigned_to, remarks) 
             VALUES ($org_id, '$name', '$mobile', $source_id, '$status', $assigned_to, '$remarks')";
     
-    if (mysqli_query($conn, $sql)) {
-        $new_lead_id = mysqli_insert_id($conn);
-        
-        // If coming from call log, link it
-        if ($call_id > 0) {
-            mysqli_query($conn, "UPDATE call_logs SET lead_id = $new_lead_id, is_converted = 1 WHERE id = $call_id AND organization_id = $org_id");
+    try {
+        if (mysqli_query($conn, $sql)) {
+            $new_lead_id = mysqli_insert_id($conn);
+            
+            // If coming from call log, link it
+            if ($call_id > 0) {
+                mysqli_query($conn, "UPDATE call_logs SET lead_id = $new_lead_id, is_converted = 1 WHERE id = $call_id AND organization_id = $org_id");
+            }
+            
+            header("Location: leads.php?success=1");
+            exit();
+        } else {
+            $error = "Failed to create lead.";
         }
-        
-        header("Location: leads.php?success=1");
-        exit();
-    } else {
-        $error = "Error: " . mysqli_error($conn);
+    } catch (mysqli_sql_exception $e) {
+        if ($e->getCode() == 1062) {
+            $error = "A lead with this mobile number already exists in your organization.";
+        } else {
+            $error = "Error: " . $e->getMessage();
+        }
     }
 }
 
@@ -45,15 +53,15 @@ include 'includes/header.php';
 ?>
 
 <div style="max-width: 800px; margin: 0 auto;">
-    <div style="display: flex; align-items: center; margin-bottom: 2rem;">
-        <a href="leads.php" style="margin-right: 1rem; color: var(--text-muted);"><i class="fas fa-arrow-left"></i></a>
-        <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);">Add New Lead</h2>
+    <div style="display: flex; align-items: center; margin-bottom: 1.5rem;">
+        <a href="leads.php" style="margin-right: 0.75rem; color: var(--text-muted);"><i class="fas fa-arrow-left"></i></a>
+        <h2 style="font-size: 1.125rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.01em;">Add New Lead</h2>
     </div>
 
     <?php if ($error): ?>
-        <div style="background: #fff1f2; color: #be123c; padding: 1rem; border-radius: 10px; margin-bottom: 1.5rem; border: 1px solid #fecdd3;">
-            <?php echo $error; ?>
-        </div>
+    <div style="background: #fef2f2; color: #991b1b; padding: 0.75rem 1rem; border-radius: 6px; border: 1px solid #fee2e2; margin-bottom: 1.25rem; font-size: 0.8125rem; font-weight: 600;">
+        <i class="fas fa-exclamation-circle" style="margin-right: 0.5rem;"></i> <?php echo $error; ?>
+    </div>
     <?php endif; ?>
 
     <div class="card">
