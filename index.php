@@ -2,7 +2,10 @@
 // index.php
 require_once 'config/db.php';
 require_once 'includes/auth.php';
-checkAuth();
+// If not logged in, show landing page
+if (!isLoggedIn()) {
+    redirect(BASE_URL . 'landing.php');
+}
 
 $user_id = $_SESSION['user_id'];
 $org_id = getOrgId();

@@ -58,24 +58,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register | Calldesk SaaS</title>
+    <title>Register | Calldesk CRM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .auth-visual {
+            background: linear-gradient(135deg, #4f46e5 0%, #312e81 100%) !important;
+        }
+        .auth-logo { text-decoration: none; }
+        .auth-logo i {
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+        .btn-primary {
+            background: #4f46e5 !important;
+            box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25);
+        }
+    </style>
 </head>
 <body>
     <div class="auth-page">
         <div class="auth-visual">
-            <h2>Start Your <br>SaaS Journey.</h2>
-            <p>Setup your organization in minutes and start managing leads effectively.</p>
+            <h1 style="font-size: 3rem; font-weight: 800; line-height: 1.1; margin-bottom: 1.5rem;">Launch Your <br>Sales Engine.</h1>
+            <p style="font-size: 1.25rem; opacity: 0.9; max-width: 500px;">Setup your organization in minutes and start managing leads effectively with Calldesk CRM.</p>
         </div>
 
         <div class="auth-form-container">
             <div class="auth-card-compact">
-                <div class="auth-logo">
+                <a href="landing.php" class="auth-logo">
                     <i class="fas fa-headset"></i>
                     <span>Calldesk</span>
-                </div>
+                </a>
 
                 <div style="margin-bottom: 2rem;">
                     <h2 style="font-size: 1.5rem; font-weight: 700;">Create Organization</h2>

@@ -21,14 +21,14 @@ function redirect($url) {
 
 function checkAuth() {
     if (!isLoggedIn()) {
-        redirect('/calldesk/login.php');
+        redirect(BASE_URL . 'login.php');
     }
 }
 
 function checkAdmin() {
     checkAuth();
     if (!isAdmin()) {
-        redirect('/calldesk/index.php');
+        redirect(BASE_URL . 'index.php');
     }
 }
 ?>

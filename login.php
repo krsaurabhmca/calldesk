@@ -57,6 +57,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .auth-visual {
+            background: linear-gradient(135deg, #4f46e5 0%, #312e81 100%) !important;
+        }
+        .auth-logo i {
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+        .btn-primary {
+            background: #4f46e5 !important;
+            box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25);
+        }
+    </style>
 </head>
 <body>
     <div class="auth-page">
@@ -79,10 +91,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <!-- Form Section -->
         <div class="auth-form-container">
             <div class="auth-card-compact">
-                <div class="auth-logo">
+                <a href="landing.php" class="auth-logo" style="text-decoration: none;">
                     <i class="fas fa-headset"></i>
                     <span>Calldesk</span>
-                </div>
+                </a>
 
                 <div style="margin-bottom: 2rem;">
                     <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main);">Sign in</h2>
