@@ -19,6 +19,7 @@ $stats = [
 ];
 
 if ($role === 'admin') {
+    // Admin: Organization-wide stats
     $res = mysqli_query($conn, "SELECT COUNT(*) as count FROM leads WHERE organization_id = $org_id");
     $stats['total_leads'] = mysqli_fetch_assoc($res)['count'] ?? 0;
 
@@ -28,7 +29,12 @@ if ($role === 'admin') {
 
     $res = mysqli_query($conn, "SELECT COUNT(*) as count FROM leads WHERE organization_id = $org_id AND status = 'Converted'");
     $stats['converted_leads'] = mysqli_fetch_assoc($res)['count'] ?? 0;
+    
+    // New Admin Stat: Total Calls Today
+    $res = mysqli_query($conn, "SELECT COUNT(*) as count FROM call_logs c JOIN users u ON c.executive_id = u.id WHERE u.organization_id = $org_id AND DATE(c.created_at) = '$today'");
+    $stats['today_calls'] = mysqli_fetch_assoc($res)['count'] ?? 0;
 } else {
+    // Executive: Personal stats
     $res = mysqli_query($conn, "SELECT COUNT(*) as count FROM leads WHERE organization_id = $org_id AND assigned_to = $user_id");
     $stats['total_leads'] = mysqli_fetch_assoc($res)['count'] ?? 0;
 
@@ -38,48 +44,72 @@ if ($role === 'admin') {
 
     $res = mysqli_query($conn, "SELECT COUNT(*) as count FROM leads WHERE organization_id = $org_id AND assigned_to = $user_id AND status = 'Converted'");
     $stats['converted_leads'] = mysqli_fetch_assoc($res)['count'] ?? 0;
+
+    // New Exec Stat: My Calls Today
+    $res = mysqli_query($conn, "SELECT COUNT(*) as count FROM call_logs WHERE executive_id = $user_id AND DATE(created_at) = '$today'");
+    $stats['today_calls'] = mysqli_fetch_assoc($res)['count'] ?? 0;
 }
 
 include 'includes/header.php';
 ?>
 
-<div style="margin-bottom: 1rem;">
-    <h1 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.02em;">Dashboard</h1>
-    <p style="color: var(--text-muted); font-size: 0.8125rem;">Welcome back, <span style="color: var(--primary); font-weight: 600;"><?php echo $_SESSION['name']; ?></span>.</p>
+<div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: flex-end;">
+    <div>
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.03em;">
+            <?php echo $role === 'admin' ? 'Organization Overview' : 'My Performance'; ?>
+        </h1>
+        <p style="color: var(--text-muted); font-size: 0.875rem;">Welcome back, <span style="color: var(--primary); font-weight: 700;"><?php echo $_SESSION['name']; ?></span>. Here's what's happening today.</p>
+    </div>
+    <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); background: #f1f5f9; padding: 0.5rem 1rem; border-radius: 100px; text-transform: uppercase; letter-spacing: 0.05em;">
+        Role: <?php echo ucfirst($role); ?>
+    </div>
 </div>
 
-<!-- Premium Stats Cards -->
-<div class="stat-grid" style="grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1.5rem;">
-    <div class="stat-card" style="padding: 0.875rem 1.125rem; border: none; box-shadow: var(--shadow); background: #ffffff; position: relative; overflow: hidden;">
-        <div style="position: absolute; top: -5px; right: -5px; width: 60px; height: 60px; background: rgba(79, 70, 229, 0.03); border-radius: 50%;"></div>
-        <div class="stat-icon" style="background: rgba(79, 70, 229, 0.08); color: var(--primary); width: 36px; height: 36px; font-size: 1rem;">
+<!-- Premium Stats Cards (4 Columns) -->
+<div class="stat-grid" style="grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem;">
+    <!-- Metric 1: Leads -->
+    <div class="stat-card" style="padding: 1.25rem; border: none; box-shadow: var(--shadow); background: #ffffff; position: relative;">
+        <div class="stat-icon" style="background: rgba(79, 70, 229, 0.08); color: var(--primary); width: 42px; height: 42px;">
             <i class="fas fa-users-line"></i>
         </div>
         <div class="stat-info">
-            <h3 style="font-size: 0.6875rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; margin-bottom: 0.25rem;">Total Leads</h3>
-            <div class="value" style="font-size: 1.375rem; font-weight: 800; color: var(--text-main); line-height: 1;"><?php echo $stats['total_leads']; ?></div>
+            <h3 style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.375rem;">
+                <?php echo $role === 'admin' ? 'Total Leads' : 'My Leads'; ?>
+            </h3>
+            <div class="value" style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);"><?php echo $stats['total_leads']; ?></div>
         </div>
     </div>
 
-    <div class="stat-card" style="padding: 0.875rem 1.125rem; border: none; box-shadow: var(--shadow); background: #ffffff; position: relative; overflow: hidden;">
-        <div style="position: absolute; top: -5px; right: -5px; width: 60px; height: 60px; background: rgba(245, 158, 11, 0.03); border-radius: 50%;"></div>
-        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.08); color: var(--warning); width: 36px; height: 36px; font-size: 1rem;">
+    <!-- Metric 2: Today's Follow-ups -->
+    <div class="stat-card" style="padding: 1.25rem; border: none; box-shadow: var(--shadow); background: #ffffff;">
+        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.08); color: var(--warning); width: 42px; height: 42px;">
             <i class="fas fa-calendar-day"></i>
         </div>
         <div class="stat-info">
-            <h3 style="font-size: 0.6875rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; margin-bottom: 0.25rem;">Tasks Today</h3>
-            <div class="value" style="font-size: 1.375rem; font-weight: 800; color: var(--text-main); line-height: 1;"><?php echo $stats['today_followups']; ?></div>
+            <h3 style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.375rem;">Tasks Today</h3>
+            <div class="value" style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);"><?php echo $stats['today_followups']; ?></div>
         </div>
     </div>
 
-    <div class="stat-card" style="padding: 0.875rem 1.125rem; border: none; box-shadow: var(--shadow); background: #ffffff; position: relative; overflow: hidden;">
-        <div style="position: absolute; top: -5px; right: -5px; width: 60px; height: 60px; background: rgba(16, 185, 129, 0.03); border-radius: 50%;"></div>
-        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.08); color: var(--success); width: 36px; height: 36px; font-size: 1rem;">
+    <!-- Metric 3: Calls Made Today (New) -->
+    <div class="stat-card" style="padding: 1.25rem; border: none; box-shadow: var(--shadow); background: #ffffff;">
+        <div class="stat-icon" style="background: rgba(99, 102, 241, 0.08); color: #6366f1; width: 42px; height: 42px;">
+            <i class="fas fa-phone-volume"></i>
+        </div>
+        <div class="stat-info">
+            <h3 style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.375rem;">Calls Today</h3>
+            <div class="value" style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);"><?php echo $stats['today_calls']; ?></div>
+        </div>
+    </div>
+
+    <!-- Metric 4: Converted -->
+    <div class="stat-card" style="padding: 1.25rem; border: none; box-shadow: var(--shadow); background: #ffffff;">
+        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.08); color: var(--success); width: 42px; height: 42px;">
             <i class="fas fa-circle-check"></i>
         </div>
         <div class="stat-info">
-            <h3 style="font-size: 0.6875rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; margin-bottom: 0.25rem;">Converted</h3>
-            <div class="value" style="font-size: 1.375rem; font-weight: 800; color: var(--text-main); line-height: 1;"><?php echo $stats['converted_leads']; ?></div>
+            <h3 style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.375rem;">Converted</h3>
+            <div class="value" style="font-size: 1.5rem; font-weight: 800; color: var(--text-main);"><?php echo $stats['converted_leads']; ?></div>
         </div>
     </div>
 </div>
@@ -92,20 +122,20 @@ include 'includes/header.php';
         <div class="card" style="padding: 0; overflow: hidden; border: none; box-shadow: var(--shadow);">
             <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #fff;">
                 <div>
-                    <h3 style="font-size: 1rem; font-weight: 800; color: var(--text-main);">Executive Performance</h3>
-                    <p style="font-size: 0.75rem; color: var(--text-muted);">Real-time call tracking per executive</p>
+                    <h3 style="font-size: 1rem; font-weight: 800; color: var(--text-main);">Team Performance</h3>
+                    <p style="font-size: 0.75rem; color: var(--text-muted);">Real-time call tracking for all staff</p>
                 </div>
-                <a href="call_logs.php" class="btn" style="width: auto; padding: 0.5rem 1rem; background: #f1f5f9; color: var(--primary); font-size: 0.75rem; text-decoration: none; border-radius: 8px; font-weight: 600;">View Logs</a>
+                <a href="call_logs.php" class="btn" style="width: auto; padding: 0.5rem 1rem; background: #f1f5f9; color: var(--primary); font-size: 0.75rem; text-decoration: none; border-radius: 8px; font-weight: 600;">Full Logs</a>
             </div>
             <div class="table-container">
                 <table style="font-size: 0.8125rem;">
                     <thead>
                         <tr style="background: #fafafa;">
-                            <th style="padding: 1rem 1.5rem; color: var(--text-muted); font-weight: 700;">EXECUTIVE</th>
-                            <th style="padding: 1rem 1.5rem; text-align: center; color: var(--success);">INCOMING</th>
-                            <th style="padding: 1rem 1.5rem; text-align: center; color: var(--primary);">OUTGOING</th>
-                            <th style="padding: 1rem 1.5rem; text-align: center; color: var(--danger);">MISSED</th>
-                            <th style="padding: 1rem 1.5rem; text-align: right;">DURATION</th>
+                            <th style="padding: 1rem 1.5rem; color: var(--text-muted); font-weight: 700;">STAFF MEMBER</th>
+                            <th style="padding: 1rem 1.5rem; text-align: center; color: var(--success);">IN</th>
+                            <th style="padding: 1rem 1.5rem; text-align: center; color: var(--primary);">OUT</th>
+                            <th style="padding: 1rem 1.5rem; text-align: center; color: var(--danger);">MISS</th>
+                            <th style="padding: 1rem 1.5rem; text-align: right;">TALK TIME</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -117,7 +147,7 @@ include 'includes/header.php';
                                     SUM(c.duration) as total_duration
                                     FROM users u 
                                     LEFT JOIN call_logs c ON u.id = c.executive_id 
-                                    WHERE u.role = 'executive' AND u.organization_id = $org_id
+                                    WHERE u.organization_id = $org_id AND u.role = 'executive'
                                     GROUP BY u.id";
                         $perf_res = mysqli_query($conn, $perf_sql);
                         while ($p = mysqli_fetch_assoc($perf_res)):
@@ -126,19 +156,62 @@ include 'includes/header.php';
                             <td style="padding: 1rem 1.5rem;">
                                 <div style="display: flex; align-items: center; gap: 0.75rem;">
                                     <div style="width: 32px; height: 32px; background: #f1f5f9; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--primary);">
-                                        <?php echo strtoupper(substr($p['name'], 0, 1)); ?>
+                                        <?php echo strtoupper(substr($p['name'] ?? 'U', 0, 1)); ?>
                                     </div>
                                     <span style="font-weight: 600; color: var(--text-main);"><?php echo $p['name']; ?></span>
                                 </div>
                             </td>
-                            <td style="padding: 1rem 1.5rem; text-align: center; font-weight: 700;"><?php echo $p['in_count'] ?: 0; ?></td>
-                            <td style="padding: 1rem 1.5rem; text-align: center; font-weight: 700;"><?php echo $p['out_count'] ?: 0; ?></td>
-                            <td style="padding: 1rem 1.5rem; text-align: center; font-weight: 700;"><?php echo $p['miss_count'] ?: 0; ?></td>
+                            <td style="padding: 1rem 1.5rem; text-align: center; font-weight: 700; color: var(--success);"><?php echo $p['in_count'] ?: 0; ?></td>
+                            <td style="padding: 1rem 1.5rem; text-align: center; font-weight: 700; color: var(--primary);"><?php echo $p['out_count'] ?: 0; ?></td>
+                            <td style="padding: 1rem 1.5rem; text-align: center; font-weight: 700; color: var(--danger);"><?php echo $p['miss_count'] ?: 0; ?></td>
                             <td style="padding: 1rem 1.5rem; text-align: right; font-family: monospace; color: var(--text-muted); font-weight: 600;">
                                 <?php 
                                     $m = floor(($p['total_duration'] ?? 0) / 60);
                                     echo $m . "m " . (($p['total_duration'] ?? 0) % 60) . "s";
                                 ?>
+                            </td>
+                        </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <?php else: ?>
+        <!-- Executive-Specific Widget: Today's Recent Calls -->
+        <div class="card" style="padding: 0; overflow: hidden; border: none; box-shadow: var(--shadow);">
+            <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #fff;">
+                <div>
+                    <h3 style="font-size: 1rem; font-weight: 800; color: var(--text-main);">My Recent Syncs</h3>
+                    <p style="font-size: 0.75rem; color: var(--text-muted);">Latest calls from your device</p>
+                </div>
+                <a href="call_logs.php" class="btn" style="width: auto; padding: 0.4rem 0.75rem; background: #f1f5f9; color: var(--primary); font-size: 0.75rem; text-decoration: none; border-radius: 8px; font-weight: 700;">View History</a>
+            </div>
+            <div class="table-container">
+                <table style="font-size: 0.8125rem;">
+                    <thead>
+                        <tr style="background: #fafafa;">
+                            <th style="padding: 0.75rem 1.5rem; color: var(--text-muted); font-weight: 700;">CALLER</th>
+                            <th style="padding: 0.75rem 1.5rem; text-align: center;">TYPE</th>
+                            <th style="padding: 0.75rem 1.5rem; text-align: right;">TIME</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php
+                        $calls_sql = "SELECT * FROM call_logs WHERE executive_id = $user_id ORDER BY created_at DESC LIMIT 5";
+                        $calls_res = mysqli_query($conn, $calls_sql);
+                        while ($c = mysqli_fetch_assoc($calls_res)):
+                        ?>
+                        <tr style="border-bottom: 1px solid #f8fafc;">
+                            <td style="padding: 0.75rem 1.5rem;">
+                                <div style="font-weight: 700; color: var(--text-main);"><?php echo $c['contact_name'] ?: ($c['phone_number'] ?: 'Unknown'); ?></div>
+                            </td>
+                            <td style="padding: 0.75rem 1.5rem; text-align: center;">
+                                <span style="font-size: 0.65rem; font-weight: 700; color: <?php echo $c['type'] == 'Incoming' ? 'var(--success)' : ($c['type'] == 'Missed' ? 'var(--danger)' : 'var(--primary)'); ?>;">
+                                    <?php echo strtoupper($c['type']); ?>
+                                </span>
+                            </td>
+                            <td style="padding: 0.75rem 1.5rem; text-align: right; color: var(--text-muted); font-size: 0.7rem;">
+                                <?php echo date('h:i A', strtotime($c['created_at'])); ?>
                             </td>
                         </tr>
                         <?php endwhile; ?>
@@ -196,11 +269,15 @@ include 'includes/header.php';
     <!-- Sidebar widgets -->
     <div style="display: flex; flex-direction: column; gap: 1.5rem;">
         <!-- Daily Activity/Goal Widget -->
-        <div class="card" style="padding: 1.5rem; border: none; box-shadow: var(--shadow); background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white;">
+        <div class="card" style="padding: 1.5rem; border: none; box-shadow: var(--shadow); background: <?php echo $role === 'admin' ? 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)' : 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)'; ?>; color: white;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
                 <div>
-                    <h3 style="font-size: 0.875rem; font-weight: 700; margin-bottom: 0.25rem;">Daily Progress</h3>
-                    <p style="font-size: 0.75rem; opacity: 0.7;">Call targets for today</p>
+                    <h3 style="font-size: 0.875rem; font-weight: 700; margin-bottom: 0.25rem;">
+                        <?php echo $role === 'admin' ? 'Team Daily Goal' : 'My Daily Goal'; ?>
+                    </h3>
+                    <p style="font-size: 0.75rem; opacity: 0.7;">
+                        <?php echo $role === 'admin' ? 'Combined team activity' : 'Personal call targets'; ?>
+                    </p>
                 </div>
                 <div style="background: rgba(255,255,255,0.1); padding: 0.5rem; border-radius: 8px;">
                     <i class="fas fa-bullseye" style="color: #60a5fa;"></i>
@@ -209,25 +286,36 @@ include 'includes/header.php';
             
             <div style="margin-bottom: 1rem;">
                 <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.5rem;">
-                    <span>Goal: 40 Calls</span>
-                    <span style="font-weight: 700;">65%</span>
+                    <?php 
+                        $goal = $role === 'admin' ? 100 : 30; // 100 for team, 30 for individual
+                        $progress = ($stats['today_calls'] / $goal) * 100;
+                        $progress = min(100, round($progress));
+                    ?>
+                    <span>Progress: <?php echo $stats['today_calls']; ?> / <?php echo $goal; ?></span>
+                    <span style="font-weight: 700;"><?php echo $progress; ?>%</span>
                 </div>
                 <div style="background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden;">
-                    <div style="background: #3b82f6; width: 65%; height: 100%; border-radius: 4px; box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);"></div>
+                    <div style="background: #3b82f6; width: <?php echo $progress; ?>%; height: 100%; border-radius: 4px; box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);"></div>
                 </div>
             </div>
             
-            <p style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 1.5rem;">You need 14 more calls to reach your daily goal. Keep it up!</p>
+            <p style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 1.5rem;">
+                <?php 
+                if ($progress >= 100) echo "Goal achieved! Excellent work today.";
+                else echo "Keep pushing! " . ($goal - $stats['today_calls']) . " more calls to reach the target.";
+                ?>
+            </p>
             
-            <a href="lead_add.php" class="btn" style="background: #ffffff; color: #0f172a; border-radius: 10px; font-size: 0.8125rem; font-weight: 700; text-decoration: none; padding: 0.75rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                <i class="fas fa-plus-circle"></i> New Prospect
+            <a href="leads.php" class="btn" style="background: #ffffff; color: #0f172a; border-radius: 10px; font-size: 0.8125rem; font-weight: 700; text-decoration: none; padding: 0.75rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                <i class="fas fa-list-check"></i> Manage Leads
             </a>
         </div>
 
         <!-- Quick Calendar/Followup Widget -->
         <div class="card" style="padding: 1.5rem; border: none; box-shadow: var(--shadow); background: #ffffff;">
             <h3 style="font-size: 0.875rem; font-weight: 700; margin-bottom: 1.25rem; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
-                <i class="fas fa-clock-rotate-left" style="color: var(--warning);"></i> Pending Tasks
+                <i class="fas fa-clock-rotate-left" style="color: var(--warning);"></i> 
+                <?php echo $role === 'admin' ? 'Upcoming for Team' : 'My Next Tasks'; ?>
             </h3>
             
             <div style="display: flex; flex-direction: column; gap: 1rem;">
@@ -241,7 +329,7 @@ include 'includes/header.php';
                 while ($t = mysqli_fetch_assoc($task_res)):
                 ?>
                 <div style="display: flex; gap: 0.75rem;">
-                    <div style="flex-shrink: 0; width: 3px; height: 35px; background: var(--border); border-radius: 2px;"></div>
+                    <div style="flex-shrink: 0; width: 3px; height: 35px; background: <?php echo strtotime($t['next_follow_up_date']) == strtotime($today) ? 'var(--warning)' : 'var(--primary)'; ?>; border-radius: 2px;"></div>
                     <div>
                         <div style="font-size: 0.8125rem; font-weight: 700; color: var(--text-main); line-height: 1;"><?php echo $t['name']; ?></div>
                         <div style="font-size: 0.6875rem; color: var(--text-muted); margin-top: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;"><?php echo $t['remark']; ?></div>
@@ -249,12 +337,12 @@ include 'includes/header.php';
                 </div>
                 <?php endwhile; ?>
                 <?php if (mysqli_num_rows($task_res) === 0): ?>
-                    <p style="font-size: 0.75rem; color: var(--text-muted); text-align: center; padding: 1rem;">No pending tasks for today.</p>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); text-align: center; padding: 1rem;">No pending tasks.</p>
                 <?php endif; ?>
             </div>
             
             <hr style="border: none; border-top: 1px solid var(--border); margin: 1.25rem 0;">
-            <a href="followups.php" style="font-size: 0.75rem; color: var(--primary); font-weight: 700; text-decoration: none; display: block; text-align: center;">View All Tasks</a>
+            <a href="followups.php" style="font-size: 0.75rem; color: var(--primary); font-weight: 700; text-decoration: none; display: block; text-align: center;">Go to Calendar</a>
         </div>
     </div>
 </div>
