@@ -20,6 +20,7 @@ $org_id = $auth_user['organization_id'];
 
 foreach ($data as $call) {
     $mobile = mysqli_real_escape_string($conn, $call['mobile'] ?? '');
+    $caller_name = mysqli_real_escape_string($conn, $call['name'] ?? '');
     $type = mysqli_real_escape_string($conn, $call['type'] ?? '');
     $duration = (int)($call['duration'] ?? 0);
     $call_time = mysqli_real_escape_string($conn, $call['call_time'] ?? ''); // Expected 'YYYY-MM-DD HH:MM:SS'
@@ -33,8 +34,8 @@ foreach ($data as $call) {
     // Check for duplicate (same number and exact time)
     $check = mysqli_query($conn, "SELECT id FROM call_logs WHERE mobile = '$mobile' AND call_time = '$call_time' AND organization_id = $org_id");
     if (mysqli_num_rows($check) == 0) {
-        $sql = "INSERT INTO call_logs (organization_id, mobile, type, duration, call_time, lead_id, executive_id) 
-                VALUES ($org_id, '$mobile', '$type', $duration, '$call_time', $lead_id, $executive_id)";
+        $sql = "INSERT INTO call_logs (organization_id, mobile, caller_name, type, duration, call_time, lead_id, executive_id) 
+                VALUES ($org_id, '$mobile', '$caller_name', '$type', $duration, '$call_time', $lead_id, $executive_id)";
         if (mysqli_query($conn, $sql)) {
             $synced_count++;
         }

@@ -61,6 +61,7 @@ $executive_id = $auth_user['id'];
 $remark = mysqli_real_escape_string($conn, $_POST['remark'] ?? '');
 $next_date = mysqli_real_escape_string($conn, $_POST['next_follow_up_date'] ?? '');
 $status = mysqli_real_escape_string($conn, $_POST['status'] ?? ''); // Optional: update lead status
+$lead_name = mysqli_real_escape_string($conn, $_POST['name'] ?? ''); // Optional: update lead name
 
 if ($lead_id <= 0 || empty($remark)) {
     sendResponse(false, 'Lead ID and Remark are required', null, 400);
@@ -91,9 +92,13 @@ try {
             VALUES ($org_id, $lead_id, $executive_id, '$remark', " . ($next_date ? "'$next_date'" : "NULL") . ")";
     mysqli_query($conn, $sql);
 
-    // 3. Update Lead Status if provided
-    if ($status) {
-        mysqli_query($conn, "UPDATE leads SET status = '$status' WHERE id = $lead_id AND organization_id = $org_id");
+    // 3. Update Lead Status & Name if provided
+    $update_parts = [];
+    if ($status) $update_parts[] = "status = '$status'";
+    if ($lead_name) $update_parts[] = "name = '$lead_name'";
+    
+    if (!empty($update_parts)) {
+        mysqli_query($conn, "UPDATE leads SET " . implode(', ', $update_parts) . " WHERE id = $lead_id AND organization_id = $org_id");
     }
 
     mysqli_commit($conn);

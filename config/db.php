@@ -14,10 +14,10 @@ if ($is_local) {
 } else {
     // Live Server Settings
     $host = 'localhost';
-    $user = 'u965320534_calldesk';
+    $user = 'u960515621_calldesk';
     $pass = '@Call_2001';
-    $db   = 'u965320534_calldesk';
-    define('BASE_URL', '/'); // Based on domain root https://calldesk.fastbloom.co.in/
+    $db   = 'u960515621_calldesk';
+    define('BASE_URL', 'https://calldesk.offerplant.com/');
 }
 
 $conn = mysqli_connect($host, $user, $pass, $db);
