@@ -65,6 +65,9 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 <a href="<?php echo BASE_URL; ?>followups.php" class="nav-link <?php echo $current_page == 'followups.php' ? 'active' : ''; ?>">
                     <i class="fas fa-calendar-check"></i> <span>Tasks</span>
                 </a>
+                <a href="<?php echo BASE_URL; ?>calendar.php" class="nav-link <?php echo $current_page == 'calendar.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-calendar-alt"></i> <span>Calendar</span>
+                </a>
                 <a href="<?php echo BASE_URL; ?>call_logs.php" class="nav-link <?php echo $current_page == 'call_logs.php' ? 'active' : ''; ?>">
                     <i class="fas fa-phone-volume"></i> <span>Call Logs</span>
                 </a>
