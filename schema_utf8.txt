@@ -1,0 +1,52 @@
+﻿
+Table: leads
+ - id (int(11))
+ - organization_id (int(11))
+ - name (varchar(100))
+ - mobile (varchar(15))
+ - source_id (int(11))
+ - source (varchar(100))
+ - status (enum('New','Follow-up','Interested','Converted','Lost'))
+ - assigned_to (int(11))
+ - remarks (text)
+ - created_at (timestamp)
+
+Table: follow_ups
+ - id (int(11))
+ - organization_id (int(11))
+ - lead_id (int(11))
+ - executive_id (int(11))
+ - remark (text)
+ - next_follow_up_date (date)
+ - created_at (timestamp)
+ - is_completed (tinyint(1))
+
+Table: call_logs
+ - id (int(11))
+ - organization_id (int(11))
+ - mobile (varchar(15))
+ - caller_name (varchar(255))
+ - type (enum('Incoming','Outgoing','Missed'))
+ - duration (int(11))
+ - call_time (datetime)
+ - lead_id (int(11))
+ - executive_id (int(11))
+ - is_converted (tinyint(1))
+ - created_at (timestamp)
+
+Table: users
+ - id (int(11))
+ - organization_id (int(11))
+ - name (varchar(100))
+ - mobile (varchar(15))
+ - password (varchar(255))
+ - role (enum('admin','executive'))
+ - status (tinyint(1))
+ - api_token (varchar(100))
+ - created_at (timestamp)
+
+Table: lead_sources
+ - id (int(11))
+ - organization_id (int(11))
+ - source_name (varchar(100))
+ - created_at (timestamp)
