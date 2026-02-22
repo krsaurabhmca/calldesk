@@ -50,7 +50,14 @@ $token = mysqli_real_escape_string($conn, $token);
 $user_sql = "SELECT id, name, role, organization_id FROM users WHERE api_token = '$token' AND status = 1";
 $user_res = mysqli_query($conn, $user_sql);
 
-if (!$user_res || mysqli_num_rows($user_res) === 0) {
+if (!$user_res) {
+    if (strpos(mysqli_error($conn), 'Unknown column \'organization_id\'') !== false) {
+        sendResponse(false, 'System Migration Required: Please run https://calldesk.offerplant.com/run_saas_migration.php to update your database schema.', ['error' => mysqli_error($conn)], 500);
+    }
+    sendResponse(false, 'Database Error: ' . mysqli_error($conn), null, 500);
+}
+
+if (mysqli_num_rows($user_res) === 0) {
     sendResponse(false, 'Unauthorized: Invalid or expired token', null, 401);
 }
 
