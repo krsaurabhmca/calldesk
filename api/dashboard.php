@@ -10,6 +10,14 @@ if ($org_id <= 0) {
     sendResponse(false, 'Organization context missing');
 }
 
+function safe_query($conn, $sql) {
+    $res = mysqli_query($conn, $sql);
+    if (!$res) {
+        sendResponse(false, 'Database error: ' . mysqli_error($conn), ['sql' => $sql], 500);
+    }
+    return $res;
+}
+
 if ($role === 'admin') {
     // Admin Dashboard Stats (Organization Wide)
     $stats = [
@@ -23,12 +31,13 @@ if ($role === 'admin') {
     ];
 
     // Total & Converted
-    $res = mysqli_query($conn, "SELECT 
+    $sql = "SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN status = 'Converted' THEN 1 ELSE 0 END) as converted,
         SUM(CASE WHEN status = 'Interested' THEN 1 ELSE 0 END) as interested,
         SUM(CASE WHEN DATE(created_at) = CURDATE() THEN 1 ELSE 0 END) as today
-        FROM leads WHERE organization_id = $org_id");
+        FROM leads WHERE organization_id = $org_id";
+    $res = safe_query($conn, $sql);
     $row = mysqli_fetch_assoc($res);
     $stats['total_leads'] = (int)$row['total'];
     $stats['converted_leads'] = (int)$row['converted'];
@@ -36,14 +45,17 @@ if ($role === 'admin') {
     $stats['today_leads'] = (int)$row['today'];
 
     // Today's Activity
-    $res = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM call_logs WHERE organization_id = $org_id AND DATE(call_time) = CURDATE()");
+    $sql = "SELECT COUNT(*) as cnt FROM call_logs WHERE organization_id = $org_id AND DATE(call_time) = CURDATE()";
+    $res = safe_query($conn, $sql);
     $stats['today_calls'] = (int)mysqli_fetch_assoc($res)['cnt'];
 
-    $res = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM follow_ups WHERE organization_id = $org_id AND DATE(created_at) = CURDATE()");
+    $sql = "SELECT COUNT(*) as cnt FROM follow_ups WHERE organization_id = $org_id AND DATE(created_at) = CURDATE()";
+    $res = safe_query($conn, $sql);
     $stats['today_followups'] = (int)mysqli_fetch_assoc($res)['cnt'];
 
     // Active Executives
-    $res = mysqli_query($conn, "SELECT COUNT(*) as cnt FROM users WHERE organization_id = $org_id AND role = 'executive' AND status = 1");
+    $sql = "SELECT COUNT(*) as cnt FROM users WHERE organization_id = $org_id AND role = 'executive' AND status = 1";
+    $res = safe_query($conn, $sql);
     $stats['active_executives'] = (int)mysqli_fetch_assoc($res)['cnt'];
 
     // Recent Global Leads
@@ -52,7 +64,7 @@ if ($role === 'admin') {
                   LEFT JOIN lead_sources s ON l.source_id = s.id 
                   LEFT JOIN users u ON l.assigned_to = u.id 
                   WHERE l.organization_id = $org_id ORDER BY l.id DESC LIMIT 5";
-    $recent_res = mysqli_query($conn, $recent_sql);
+    $recent_res = safe_query($conn, $recent_sql);
     $recent_leads = [];
     while($row = mysqli_fetch_assoc($recent_res)) $recent_leads[] = $row;
 
@@ -68,20 +80,22 @@ if ($role === 'admin') {
     ];
 
     // Personal Leads
-    $res = mysqli_query($conn, "SELECT 
+    $sql = "SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN status = 'Converted' THEN 1 ELSE 0 END) as converted
-        FROM leads WHERE assigned_to = $user_id AND organization_id = $org_id");
+        FROM leads WHERE assigned_to = $user_id AND organization_id = $org_id";
+    $res = safe_query($conn, $sql);
     $row = mysqli_fetch_assoc($res);
     $stats['my_leads'] = (int)$row['total'];
     $stats['my_converted'] = (int)$row['converted'];
 
     // Today's Tasks
-    $res = mysqli_query($conn, "SELECT 
+    $sql = "SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN is_completed = 1 THEN 1 ELSE 0 END) as completed
         FROM follow_ups 
-        WHERE executive_id = $user_id AND organization_id = $org_id AND DATE(followup_date) <= CURDATE()");
+        WHERE executive_id = $user_id AND organization_id = $org_id AND DATE(next_follow_up_date) <= CURDATE()";
+    $res = safe_query($conn, $sql);
     $row = mysqli_fetch_assoc($res);
     $stats['today_tasks'] = (int)$row['total'];
     $stats['completed_tasks'] = (int)$row['completed'];
@@ -97,7 +111,7 @@ if ($role === 'admin') {
                   LEFT JOIN lead_sources s ON l.source_id = s.id 
                   WHERE l.assigned_to = $user_id AND l.organization_id = $org_id 
                   ORDER BY l.id DESC LIMIT 5";
-    $recent_res = mysqli_query($conn, $recent_sql);
+    $recent_res = safe_query($conn, $recent_sql);
     $recent_leads = [];
     while($row = mysqli_fetch_assoc($recent_res)) $recent_leads[] = $row;
 }
