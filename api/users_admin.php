@@ -62,17 +62,22 @@ if ($method === 'GET') {
 
     } elseif ($action === 'activity') {
         $user_id = (int)($_GET['user_id'] ?? 0);
+        $date = mysqli_real_escape_string($conn, $_GET['date'] ?? '');
+        
         if ($user_id <= 0) sendResponse(false, 'User ID is required');
 
         // Detailed activity
         $activities = [];
         
+        $call_date_filter = !empty($date) ? " AND DATE(c.call_time) = '$date' " : "";
+        $follow_date_filter = !empty($date) ? " AND DATE(f.created_at) = '$date' " : "";
+
         // Recent Calls
         $calls_sql = "SELECT c.*, l.name as lead_name 
                       FROM call_logs c 
                       LEFT JOIN leads l ON c.mobile = l.mobile AND l.organization_id = $org_id
-                      WHERE c.executive_id = $user_id AND c.organization_id = $org_id 
-                      ORDER BY c.call_time DESC LIMIT 20";
+                      WHERE c.executive_id = $user_id AND c.organization_id = $org_id $call_date_filter
+                      ORDER BY c.call_time DESC LIMIT 50";
         $calls_res = mysqli_query($conn, $calls_sql);
         while($row = mysqli_fetch_assoc($calls_res)) {
             $row['activity_type'] = 'call';
@@ -84,8 +89,8 @@ if ($method === 'GET') {
         $f_sql = "SELECT f.*, l.name as lead_name 
                   FROM follow_ups f 
                   JOIN leads l ON f.lead_id = l.id 
-                  WHERE f.executive_id = $user_id AND f.organization_id = $org_id 
-                  ORDER BY f.created_at DESC LIMIT 20";
+                  WHERE f.executive_id = $user_id AND f.organization_id = $org_id $follow_date_filter
+                  ORDER BY f.created_at DESC LIMIT 50";
         $f_res = mysqli_query($conn, $f_sql);
         while($row = mysqli_fetch_assoc($f_res)) {
             $row['activity_type'] = 'followup';

@@ -14,6 +14,12 @@ if ($role !== 'admin') {
     $where .= " AND c.executive_id = $user_id";
 }
 
+// Executive Filter (Admin only)
+$exec_id = (int)($_REQUEST['executive_id'] ?? 0);
+if ($role === 'admin' && $exec_id > 0) {
+    $where .= " AND c.executive_id = $exec_id";
+}
+
 // Search Filter (Name or Mobile)
 $search = mysqli_real_escape_string($conn, $_REQUEST['search'] ?? '');
 if ($search) {

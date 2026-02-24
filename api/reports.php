@@ -56,5 +56,26 @@ if ($action === 'summary') {
         'source_distribution' => $source_data,
         'team_performance' => $team_data
     ]);
+} elseif ($action === 'business_calls_report') {
+    $sql = "SELECT 
+                u.id as executive_id, 
+                u.name as executive_name, 
+                DATE(c.call_time) as call_date, 
+                SUM(c.duration) as total_duration,
+                COUNT(c.id) as call_count
+            FROM call_logs c
+            JOIN leads l ON c.mobile = l.mobile AND c.organization_id = l.organization_id
+            JOIN users u ON c.executive_id = u.id
+            WHERE c.organization_id = $org_id
+            GROUP BY u.id, DATE(c.call_time)
+            ORDER BY call_date DESC, u.name ASC";
+            
+    $res = mysqli_query($conn, $sql);
+    $report_data = [];
+    while($row = mysqli_fetch_assoc($res)) {
+        $report_data[] = $row;
+    }
+    
+    sendResponse(true, 'Business calls report fetched', $report_data);
 }
 ?>

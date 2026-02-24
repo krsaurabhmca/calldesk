@@ -68,6 +68,21 @@ if ($role === 'admin') {
     $recent_leads = [];
     while($row = mysqli_fetch_assoc($recent_res)) $recent_leads[] = $row;
 
+    // Executive Performance (Today)
+    $exec_stats_sql = "SELECT u.id, u.name,
+        (SELECT COUNT(*) FROM call_logs c WHERE c.executive_id = u.id AND DATE(c.call_time) = CURDATE()) as total_calls,
+        (SELECT COUNT(*) FROM call_logs c WHERE c.executive_id = u.id AND c.type = 'Missed' AND DATE(c.call_time) = CURDATE()) as missed_calls,
+        (SELECT COUNT(*) FROM call_logs c WHERE c.executive_id = u.id AND c.type = 'Incoming' AND DATE(c.call_time) = CURDATE()) as incoming_calls,
+        (SELECT COUNT(*) FROM call_logs c WHERE c.executive_id = u.id AND c.type = 'Outgoing' AND DATE(c.call_time) = CURDATE()) as outgoing_calls,
+        (SELECT COUNT(*) FROM follow_ups f WHERE f.executive_id = u.id AND DATE(f.next_follow_up_date) = CURDATE() AND f.is_completed = 0) as pending_tasks
+        FROM users u 
+        WHERE u.organization_id = $org_id AND u.role = 'executive' AND u.status = 1";
+    $exec_res = safe_query($conn, $exec_stats_sql);
+    $executive_performance = [];
+    while($row = mysqli_fetch_assoc($exec_res)) $executive_performance[] = $row;
+
+    $extra_data = ['executive_performance' => $executive_performance];
+
 } else {
     // Executive Dashboard Stats (Personal)
     $stats = [
@@ -116,9 +131,9 @@ if ($role === 'admin') {
     while($row = mysqli_fetch_assoc($recent_res)) $recent_leads[] = $row;
 }
 
-sendResponse(true, 'Dashboard data fetched', [
+sendResponse(true, 'Dashboard data fetched', array_merge([
     'role' => $role,
     'stats' => $stats,
     'recent_leads' => $recent_leads
-]);
+], $extra_data ?? []));
 ?>
