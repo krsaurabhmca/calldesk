@@ -98,6 +98,33 @@ if ($method === 'GET') {
         }
     }
 
+} elseif ($method === 'DELETE') {
+    // Delete lead
+    // Expect lead_id in the URL
+    $lead_id = (int)($_GET['id'] ?? 0);
+    
+    if ($lead_id <= 0) {
+        sendResponse(false, 'Lead ID is required', null, 400);
+    }
+    
+    // Check if the lead belongs to the organization (Security check)
+    // Only Admin can delete leads, or the executive who owns it? 
+    // Usually admin should manage deletions.
+    $check_sql = "SELECT id FROM leads WHERE id = $lead_id AND organization_id = $org_id";
+    $check_res = mysqli_query($conn, $check_sql);
+    
+    if (mysqli_num_rows($check_res) === 0) {
+        sendResponse(false, 'Lead not found or unauthorized', null, 404);
+    }
+
+    $sql = "DELETE FROM leads WHERE id = $lead_id AND organization_id = $org_id";
+    
+    if (mysqli_query($conn, $sql)) {
+        sendResponse(true, 'Lead deleted successfully');
+    } else {
+        sendResponse(false, 'Error deleting lead: ' . mysqli_error($conn), null, 500);
+    }
+
 } else {
     sendResponse(false, 'Method not allowed', null, 405);
 }

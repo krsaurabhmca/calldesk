@@ -10,10 +10,15 @@ $user_id = $_SESSION['user_id'];
 
 $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
 $type_filter = isset($_GET['type']) ? mysqli_real_escape_string($conn, $_GET['type']) : '';
+$exec_filter = isset($_GET['executive_id']) ? (int)$_GET['executive_id'] : 0;
+$date_from = isset($_GET['date_from']) ? mysqli_real_escape_string($conn, $_GET['date_from']) : '';
+$date_to = isset($_GET['date_to']) ? mysqli_real_escape_string($conn, $_GET['date_to']) : '';
 
-$where = "WHERE c.organization_id = $org_id";
+$where = "WHERE (c.organization_id = $org_id OR u.organization_id = $org_id)";
 if ($role !== 'admin') {
     $where .= " AND c.executive_id = $user_id";
+} elseif ($exec_filter > 0) {
+    $where .= " AND c.executive_id = $exec_filter";
 }
 
 if ($search) {
@@ -21,6 +26,12 @@ if ($search) {
 }
 if ($type_filter) {
     $where .= " AND c.type = '$type_filter'";
+}
+if ($date_from) {
+    $where .= " AND DATE(c.call_time) >= '$date_from'";
+}
+if ($date_to) {
+    $where .= " AND DATE(c.call_time) <= '$date_to'";
 }
 
 $sql = "SELECT c.*, l.name as lead_name, u.name as executive_name 
@@ -30,6 +41,15 @@ $sql = "SELECT c.*, l.name as lead_name, u.name as executive_name
         $where ORDER BY c.call_time DESC";
 $result = mysqli_query($conn, $sql);
 
+// Fetch executives for filter (Admin only)
+$executives = [];
+if ($role === 'admin') {
+    $exec_res = mysqli_query($conn, "SELECT id, name FROM users WHERE organization_id = $org_id AND status = 1 ORDER BY name ASC");
+    while ($e = mysqli_fetch_assoc($exec_res)) {
+        $executives[] = $e;
+    }
+}
+
 include 'includes/header.php';
 ?>
 
@@ -38,17 +58,50 @@ include 'includes/header.php';
     <p style="color: var(--text-muted); font-size: 0.875rem;">View synchronized call activity.</p>
 </div>
 
-<div class="card" style="margin-bottom: 2rem; padding: 1rem;">
-    <form method="GET" style="display: flex; gap: 1rem;">
-        <input type="text" name="search" class="form-control" placeholder="Search mobile or name..." value="<?php echo htmlspecialchars($search); ?>">
-        <select name="type" class="form-control" style="width: 200px;">
-            <option value="">All Types</option>
-            <option value="Incoming" <?php echo $type_filter == 'Incoming' ? 'selected' : ''; ?>>Incoming</option>
-            <option value="Outgoing" <?php echo $type_filter == 'Outgoing' ? 'selected' : ''; ?>>Outgoing</option>
-            <option value="Missed" <?php echo $type_filter == 'Missed' ? 'selected' : ''; ?>>Missed</option>
-        </select>
-        <button type="submit" class="btn btn-primary" style="width: auto;">Filter</button>
-        <a href="call_logs.php" class="btn" style="width: auto; background: #f1f5f9; color: var(--text-main); text-decoration: none;">Clear</a>
+<div class="card" style="margin-bottom: 2rem; padding: 1.25rem;">
+    <form method="GET" style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;">
+        <div style="flex: 1; min-width: 200px;">
+            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 0.5rem;">SEARCH</label>
+            <input type="text" name="search" class="form-control" placeholder="Mobile or lead name..." value="<?php echo htmlspecialchars($search); ?>">
+        </div>
+        
+        <?php if ($role === 'admin'): ?>
+        <div style="min-width: 180px;">
+            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 0.5rem;">EXECUTIVE</label>
+            <select name="executive_id" class="form-control">
+                <option value="">All Executives</option>
+                <?php foreach ($executives as $e): ?>
+                    <option value="<?php echo $e['id']; ?>" <?php echo $exec_filter == $e['id'] ? 'selected' : ''; ?>><?php echo $e['name']; ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <?php endif; ?>
+
+        <div style="width: 150px;">
+            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 0.5rem;">TYPE</label>
+            <select name="type" class="form-control">
+                <option value="">All Types</option>
+                <option value="Incoming" <?php echo $type_filter == 'Incoming' ? 'selected' : ''; ?>>Incoming</option>
+                <option value="Outgoing" <?php echo $type_filter == 'Outgoing' ? 'selected' : ''; ?>>Outgoing</option>
+                <option value="Missed" <?php echo $type_filter == 'Missed' ? 'selected' : ''; ?>>Missed</option>
+            </select>
+        </div>
+
+        <div style="width: 130px;">
+            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 0.5rem;">FROM</label>
+            <input type="date" name="date_from" class="form-control" value="<?php echo $date_from; ?>">
+        </div>
+
+        <div style="width: 130px;">
+            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 0.5rem;">TO</label>
+            <input type="date" name="date_to" class="form-control" value="<?php echo $date_to; ?>">
+        </div>
+
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary" style="width: auto;">Filter</button>
+            <button type="button" onclick="window.location.href='call_logs.php?date_from=<?php echo date('Y-m-d'); ?>&date_to=<?php echo date('Y-m-d'); ?>'" class="btn" style="width: auto; background: #e0e7ff; color: var(--primary);">Today</button>
+            <a href="call_logs.php" class="btn" style="width: auto; background: #f1f5f9; color: var(--text-main); text-decoration: none;">Clear</a>
+        </div>
     </form>
 </div>
 

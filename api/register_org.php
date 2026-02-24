@@ -13,15 +13,18 @@ function sendResponse($success, $message, $data = null, $code = 200) {
     exit();
 }
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    sendResponse(false, 'Invalid request method', null, 405);
+// 1. Get input (Handle both POST and JSON)
+$input = $_POST;
+if (empty($input)) {
+    $raw = file_get_contents('php://input');
+    $input = json_decode($raw, true) ?? [];
 }
 
-// 1. Sanitize Inputs
-$org_name = mysqli_real_escape_string($conn, $_POST['org_name'] ?? '');
-$admin_name = mysqli_real_escape_string($conn, $_POST['name'] ?? '');
-$mobile = mysqli_real_escape_string($conn, $_POST['mobile'] ?? '');
-$password = $_POST['password'] ?? '';
+// 2. Sanitize Inputs
+$org_name = mysqli_real_escape_string($conn, $input['org_name'] ?? '');
+$admin_name = mysqli_real_escape_string($conn, $input['name'] ?? '');
+$mobile = mysqli_real_escape_string($conn, $input['mobile'] ?? '');
+$password = $input['password'] ?? '';
 
 if (empty($org_name) || empty($admin_name) || empty($mobile) || empty($password)) {
     sendResponse(false, 'All fields are required', null, 400);

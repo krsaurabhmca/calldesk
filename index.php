@@ -122,8 +122,8 @@ include 'includes/header.php';
         <div class="card" style="padding: 0; overflow: hidden; border: none; box-shadow: var(--shadow);">
             <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #fff;">
                 <div>
-                    <h3 style="font-size: 1rem; font-weight: 800; color: var(--text-main);">Team Performance</h3>
-                    <p style="font-size: 0.75rem; color: var(--text-muted);">Real-time call tracking for all staff</p>
+                    <h3 style="font-size: 1rem; font-weight: 800; color: var(--text-main);">Team Analytics (Today)</h3>
+                    <p style="font-size: 0.75rem; color: var(--text-muted);">Real-time tracking for all executives today</p>
                 </div>
                 <a href="call_logs.php" class="btn" style="width: auto; padding: 0.5rem 1rem; background: #f1f5f9; color: var(--primary); font-size: 0.75rem; text-decoration: none; border-radius: 8px; font-weight: 600;">Full Logs</a>
             </div>
@@ -131,22 +131,27 @@ include 'includes/header.php';
                 <table style="font-size: 0.8125rem;">
                     <thead>
                         <tr style="background: #fafafa;">
-                            <th style="padding: 1rem 1.5rem; color: var(--text-muted); font-weight: 700;">STAFF MEMBER</th>
+                            <th style="padding: 1rem 1.5rem; color: var(--text-muted); font-weight: 700;">EXECUTIVE</th>
+                            <th style="padding: 1rem 1.5rem; text-align: center; color: var(--primary);">CALLS</th>
                             <th style="padding: 1rem 1.5rem; text-align: center; color: var(--success);">IN</th>
-                            <th style="padding: 1rem 1.5rem; text-align: center; color: var(--primary);">OUT</th>
                             <th style="padding: 1rem 1.5rem; text-align: center; color: var(--danger);">MISS</th>
+                            <th style="padding: 1rem 1.5rem; text-align: center; color: var(--warning);">TASKS</th>
                             <th style="padding: 1rem 1.5rem; text-align: right;">TALK TIME</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php
-                        $perf_sql = "SELECT u.name, 
-                                    SUM(CASE WHEN c.type = 'Incoming' THEN 1 ELSE 0 END) as in_count,
-                                    SUM(CASE WHEN c.type = 'Outgoing' THEN 1 ELSE 0 END) as out_count,
-                                    SUM(CASE WHEN c.type = 'Missed' THEN 1 ELSE 0 END) as miss_count,
-                                    SUM(c.duration) as total_duration
+                        // Optimized for Today's Stats
+                        $today = date('Y-m-d');
+                        $perf_sql = "SELECT u.id, u.name, 
+                                    COUNT(c.id) as total_calls,
+                                    SUM(CASE WHEN c.type = 'Incoming' AND DATE(c.created_at) = '$today' THEN 1 ELSE 0 END) as in_count,
+                                    SUM(CASE WHEN c.type = 'Outgoing' AND DATE(c.created_at) = '$today' THEN 1 ELSE 0 END) as out_count,
+                                    SUM(CASE WHEN c.type = 'Missed' AND DATE(c.created_at) = '$today' THEN 1 ELSE 0 END) as miss_count,
+                                    SUM(CASE WHEN DATE(c.created_at) = '$today' THEN c.duration ELSE 0 END) as total_duration,
+                                    (SELECT COUNT(*) FROM follow_ups f JOIN leads l ON f.lead_id = l.id WHERE l.assigned_to = u.id AND f.next_follow_up_date = '$today') as task_count
                                     FROM users u 
-                                    LEFT JOIN call_logs c ON u.id = c.executive_id 
+                                    LEFT JOIN call_logs c ON u.id = c.executive_id AND DATE(c.created_at) = '$today'
                                     WHERE u.organization_id = $org_id AND u.role = 'executive'
                                     GROUP BY u.id";
                         $perf_res = mysqli_query($conn, $perf_sql);
@@ -161,9 +166,10 @@ include 'includes/header.php';
                                     <span style="font-weight: 600; color: var(--text-main);"><?php echo $p['name']; ?></span>
                                 </div>
                             </td>
-                            <td style="padding: 1rem 1.5rem; text-align: center; font-weight: 700; color: var(--success);"><?php echo $p['in_count'] ?: 0; ?></td>
                             <td style="padding: 1rem 1.5rem; text-align: center; font-weight: 700; color: var(--primary);"><?php echo $p['out_count'] ?: 0; ?></td>
+                            <td style="padding: 1rem 1.5rem; text-align: center; font-weight: 700; color: var(--success);"><?php echo $p['in_count'] ?: 0; ?></td>
                             <td style="padding: 1rem 1.5rem; text-align: center; font-weight: 700; color: var(--danger);"><?php echo $p['miss_count'] ?: 0; ?></td>
+                            <td style="padding: 1rem 1.5rem; text-align: center; font-weight: 700; color: var(--warning);"><?php echo $p['task_count'] ?: 0; ?></td>
                             <td style="padding: 1rem 1.5rem; text-align: right; font-family: monospace; color: var(--text-muted); font-weight: 600;">
                                 <?php 
                                     $m = floor(($p['total_duration'] ?? 0) / 60);

@@ -13,15 +13,18 @@ function sendResponse($success, $message, $data = null, $code = 200) {
     exit();
 }
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    sendResponse(false, 'Invalid request method', null, 405);
+// 1. Get input (Handle both POST and JSON)
+$input = $_POST;
+if (empty($input)) {
+    $raw = file_get_contents('php://input');
+    $input = json_decode($raw, true) ?? [];
 }
 
-$mobile = mysqli_real_escape_string($conn, $_POST['mobile'] ?? '');
-$password = $_POST['password'] ?? '';
+$mobile = mysqli_real_escape_string($conn, $input['mobile'] ?? '');
+$password = $input['password'] ?? '';
 
 if (empty($mobile) || empty($password)) {
-    sendResponse(false, 'Mobile and password are required', null, 400);
+    sendResponse(false, 'Mobile number and password are required', null, 400);
 }
 
 $sql = "SELECT u.*, o.name as organization_name 
