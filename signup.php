@@ -129,6 +129,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Register & Setup</button>
                     
+                    <p style="font-size: 0.75rem; color: var(--text-muted); text-align: center; margin-top: 1rem;">
+                        By registering, you agree to our <a href="privacy-policy.php" style="color: var(--primary);">Privacy Policy</a>.
+                    </p>
+                    
                     <div style="text-align: center; margin-top: 1.5rem;">
                         <span style="font-size: 0.875rem; color: var(--text-muted);">Already Have? <a href="login.php" style="color: var(--primary); font-weight: 600; text-decoration: none;">Login Here</a></span>
                     </div>

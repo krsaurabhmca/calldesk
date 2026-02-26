@@ -573,10 +573,10 @@ if (isLoggedIn()) {
     </section>
 
     <footer class="site-footer">
-        <div>&copy; <?php echo date('Y'); ?> Calldesk CRM. All rights reserved.</div>
+        <div>&copy; <?php echo date('Y'); ?> Calldesk CRM by Digital Seal. All rights reserved.</div>
         <div style="display: flex; gap: 32px; font-size: 0.9rem;">
-            <a href="#" style="color: inherit; text-decoration: none;">Privacy Policy</a>
-            <a href="#" style="color: inherit; text-decoration: none;">Terms of Service</a>
+            <a href="privacy-policy.php" style="color: inherit; text-decoration: none;">Privacy Policy</a>
+            <a href="delete-account.php" style="color: inherit; text-decoration: none;">Delete Account</a>
             <a href="https://calldesk.offerplant.com/" style="color: var(--primary); text-decoration: none; font-weight: 800;">Official Site</a>
         </div>
     </footer>

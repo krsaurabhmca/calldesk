@@ -132,6 +132,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <span style="font-size: 0.875rem; color: var(--text-muted);">Don't have an account? <a href="signup.php" style="color: var(--primary); font-weight: 600; text-decoration: none;">Register Organization</a></span>
                     </div>
                 </form>
+
+                <div style="margin-top: 3rem; text-align: center; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+                    <div style="display: flex; gap: 1.5rem; justify-content: center; font-size: 0.75rem;">
+                        <a href="privacy-policy.php" style="color: var(--text-muted); text-decoration: none;">Privacy Policy</a>
+                        <a href="delete-account.php" style="color: var(--text-muted); text-decoration: none;">Delete Account</a>
+                    </div>
+                    <p style="font-size: 0.75rem; color: #cbd5e1; margin-top: 0.75rem;">&copy; <?php echo date('Y'); ?> Calldesk CRM by Digital Seal</p>
+                </div>
             </div>
         </div>
     </div>

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { getUser, logout } from '../services/auth';
-import { User, LogOut, ChevronRight, Settings, Phone, Mail, Shield, Smartphone, Building2 } from 'lucide-react-native';
+import { User, LogOut, ChevronRight, Settings, Phone, Mail, Shield, Smartphone, Building2, Trash2, FileText } from 'lucide-react-native';
 import { useSnackbar } from '../context/SnackbarContext';
 
 export default function ProfileScreen() {
@@ -51,6 +51,8 @@ export default function ProfileScreen() {
             title: 'Support',
             items: [
                 { icon: Phone, label: 'Contact Support', action: () => showSnackbar('Support contact: support@calldesk.in', 'info') },
+                { icon: FileText, label: 'Privacy Policy', action: () => Linking.openURL('https://calldesk.offerplant.com/privacy-policy.php') },
+                { icon: Trash2, label: 'Delete Account', action: () => Linking.openURL('https://calldesk.offerplant.com/delete-account.php') },
             ]
         }
     ];
