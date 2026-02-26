@@ -1,0 +1,1174 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl, TouchableOpacity, Linking, Modal, TextInput, Alert, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { apiCall } from '../../services/api';
+import { getUser } from '../../services/auth';
+import { Phone, User, Tag, Plus, X, ChevronRight, CheckCircle2, History, MessageSquare, Calendar as CalendarIcon, Search, Filter, MessageCircle, MoreVertical, Trash2, UserPlus } from 'lucide-react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useSnackbar } from '../../context/SnackbarContext';
+import * as SecureStore from 'expo-secure-store';
+import { TOKEN_KEY } from '../../constants/Config';
+
+const STATUS_OPTIONS = ['Pending', 'Follow-up', 'Interested', 'Converted', 'Lost'];
+
+export default function LeadsScreen() {
+    const { showSnackbar } = useSnackbar();
+    const [leads, setLeads] = useState([]);
+    const [sources, setSources] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState('All');
+    const [whatsappMessages, setWhatsappMessages] = useState<any[]>([]);
+    const [executives, setExecutives] = useState<any[]>([]);
+    const [userRole, setUserRole] = useState<string>('');
+
+    // Action Modal State (Long Press)
+    const [actionModalVisible, setActionModalVisible] = useState(false);
+    const [assignModalVisible, setAssignModalVisible] = useState(false);
+    const [selectedLeadForAction, setSelectedLeadForAction] = useState<any>(null);
+
+    // Add Lead Modal State
+    const [addModalVisible, setAddModalVisible] = useState(false);
+    const [newName, setNewName] = useState('');
+    const [newMobile, setNewMobile] = useState('');
+    const [newSource, setNewSource] = useState('0');
+    const [newRemarks, setNewRemarks] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+
+    // Update Lead Modal State
+    const [updateModalVisible, setUpdateModalVisible] = useState(false);
+    const [selectedLead, setSelectedLead] = useState<any>(null);
+    const [updateRemark, setUpdateRemark] = useState('');
+    const [updateStatus, setUpdateStatus] = useState('');
+    const [nextFollowUp, setNextFollowUp] = useState('');
+    const [activeTab, setActiveTab] = useState<'update' | 'history'>('update');
+    const [history, setHistory] = useState<any[]>([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+
+    // Date Picker State
+    const [showDatePicker, setShowDatePicker] = useState(false);
+
+    const fetchData = async () => {
+        const [leadsRes, sourcesRes, waRes] = await Promise.all([
+            apiCall('leads.php'),
+            apiCall('sources.php'),
+            apiCall('whatsapp_messages.php')
+        ]);
+
+        if (leadsRes.success) setLeads(leadsRes.data);
+        if (sourcesRes.success) setSources(sourcesRes.data);
+        if (waRes.success) setWhatsappMessages(waRes.data);
+
+        // Fetch executives if admin
+        const execRes = await apiCall('leads.php?action=executives');
+        if (execRes.success) setExecutives(execRes.data);
+
+        setLoading(false);
+    };
+
+    const fetchUserRole = async () => {
+        const user = await getUser();
+        if (user) {
+            setUserRole(user.role || '');
+        }
+    };
+
+    useEffect(() => {
+        fetchUserRole();
+    }, []);
+
+    const fetchHistory = async (leadId: number) => {
+        setLoadingHistory(true);
+        const result = await apiCall(`history.php?lead_id=${leadId}`);
+        if (result.success) {
+            setHistory(result.data);
+        }
+        setLoadingHistory(false);
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchData();
+        }, [])
+    );
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await fetchData();
+        setRefreshing(false);
+    };
+
+    const handleCall = (mobile: string) => {
+        Linking.openURL(`tel:${mobile}`);
+    };
+
+    const handleWhatsApp = (mobile: string) => {
+        const defaultMsg = whatsappMessages.find(m => m.is_default == 1);
+        const text = defaultMsg ? defaultMsg.message : 'Hello, this is regarding your inquiry with Calldesk.';
+        Linking.openURL(`whatsapp://send?phone=91${mobile}&text=${encodeURIComponent(text)}`);
+    };
+
+    const getFormattedDate = (daysToAdd: number) => {
+        const date = new Date();
+        date.setDate(date.getDate() + daysToAdd);
+        return date.toISOString().split('T')[0];
+    };
+
+    const onDateChange = (event: any, selectedDate?: Date) => {
+        setShowDatePicker(false);
+        if (selectedDate) {
+            setNextFollowUp(selectedDate.toISOString().split('T')[0]);
+        }
+    };
+
+    const filteredLeads = Array.isArray(leads) ? leads.filter((lead: any) => {
+        if (!lead || !lead.name) return false;
+        const matchesSearch = lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (lead.mobile && lead.mobile.includes(searchQuery));
+        const matchesStatus = statusFilter === 'All' || lead.status === statusFilter;
+        return matchesSearch && matchesStatus;
+    }) : [];
+
+    const handleAddLead = async () => {
+        if (!newName || !newMobile) {
+            showSnackbar('Name and Mobile are required', 'error');
+            return;
+        }
+
+        setSubmitting(true);
+        const result = await apiCall('leads.php', 'POST', {
+            name: newName,
+            mobile: newMobile,
+            source_id: newSource,
+            remarks: newRemarks
+        });
+        setSubmitting(false);
+
+        if (result.success) {
+            showSnackbar('Lead added successfully', 'success');
+            setAddModalVisible(false);
+            resetAddForm();
+            fetchData();
+        } else {
+            showSnackbar(result.message || 'Failed to add lead', 'error');
+        }
+    };
+
+    const resetAddForm = () => {
+        setNewName('');
+        setNewMobile('');
+        setNewSource('0');
+        setNewRemarks('');
+    };
+
+    const openUpdateModal = (lead: any) => {
+        if (!lead) return;
+        setSelectedLead(lead);
+        setUpdateStatus(lead.status || 'Pending');
+        setUpdateRemark('');
+        setNextFollowUp('');
+        setHistory([]);
+        setActiveTab('update');
+        setUpdateModalVisible(true);
+        if (lead.id) fetchHistory(lead.id);
+    };
+
+    const handleLongPress = (lead: any) => {
+        setSelectedLeadForAction(lead);
+        setActionModalVisible(true);
+    };
+
+    const handleDeleteLead = async () => {
+        if (!selectedLeadForAction) return;
+
+        Alert.alert(
+            "Delete Lead",
+            `Are you sure you want to delete ${selectedLeadForAction.name}?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        const result = await apiCall(`leads.php?id=${selectedLeadForAction.id}`, 'DELETE');
+                        if (result.success) {
+                            showSnackbar('Lead deleted', 'success');
+                            setActionModalVisible(false);
+                            fetchData();
+                        } else {
+                            showSnackbar(result.message || 'Failed to delete lead', 'error');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const handleAssignLead = async (executiveId: number) => {
+        if (!selectedLeadForAction || !selectedLeadForAction.id) return;
+        setSubmitting(true);
+        const result = await apiCall('assign.php', 'POST', {
+            lead_id: selectedLeadForAction.id,
+            assign_to: executiveId
+        });
+        setSubmitting(false);
+
+        if (result.success) {
+            showSnackbar('Lead assigned successfully', 'success');
+            setAssignModalVisible(false);
+            setActionModalVisible(false);
+            fetchData();
+        } else {
+            showSnackbar(result.message || 'Failed to assign lead', 'error');
+        }
+    };
+
+    const handleUpdateLead = async () => {
+        if (!updateRemark) {
+            showSnackbar('Please enter a remark', 'error');
+            return;
+        }
+
+        const finalDate = nextFollowUp || new Date().toISOString().split('T')[0];
+
+        setSubmitting(true);
+        const result = await apiCall('followups.php', 'POST', {
+            lead_id: selectedLead?.id,
+            remark: updateRemark,
+            status: updateStatus,
+            next_follow_up_date: finalDate
+        });
+        setSubmitting(false);
+
+        if (result.success) {
+            showSnackbar('Lead updated successfully', 'success');
+            setUpdateModalVisible(false);
+            fetchData();
+        } else {
+            showSnackbar(result.message || 'Failed to update lead', 'error');
+        }
+    };
+
+    const formatDateTime = (dateStr: string) => {
+        if (!dateStr) return '';
+        const isoStr = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T');
+        const date = new Date(isoStr);
+        return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) + ' ' +
+            date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    };
+
+    const renderLead = ({ item }: any) => (
+        <TouchableOpacity
+            style={styles.card}
+            onPress={() => openUpdateModal(item)}
+            onLongPress={() => handleLongPress(item)}
+            delayLongPress={500}
+        >
+            <View style={styles.cardContent}>
+                <View style={styles.avatarCompact}>
+                    <Text style={styles.avatarTextCompact}>{item.name.charAt(0).toUpperCase()}</Text>
+                </View>
+                <View style={styles.cardInfo}>
+                    <Text style={styles.leadName} numberOfLines={1}>{item.name}</Text>
+                    <Text style={styles.mobileTextCompact}>{item.mobile}</Text>
+                </View>
+                <View style={styles.itemRight}>
+                    <View style={[styles.statusBadgeCompact, { backgroundColor: getStatusColor(item.status) }]}>
+                        <Text style={styles.statusTextCompact}>{item.status}</Text>
+                    </View>
+                    <View style={styles.actionRowLead}>
+                        <TouchableOpacity
+                            style={styles.whatsappCircleCompact}
+                            onPress={() => handleWhatsApp(item.mobile)}
+                        >
+                            <MessageCircle size={14} color="#fff" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.callCircleCompact}
+                            onPress={() => handleCall(item.mobile)}
+                        >
+                            <Phone size={14} color="#fff" fill="#fff" />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
+        </TouchableOpacity>
+    );
+
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case 'Converted': return '#10b981';
+            case 'Interested': return '#6366f1';
+            case 'Lost': return '#ef4444';
+            case 'Follow-up': return '#f59e0b';
+            default: return '#94a3b8';
+        }
+    };
+
+    if (loading) {
+        return (
+            <View style={styles.center}>
+                <ActivityIndicator size="large" color="#6366f1" />
+            </View>
+        );
+    }
+
+    return (
+        <View style={styles.container}>
+            {/* Search and Quick Filters */}
+            <View style={styles.topTools}>
+                <View style={styles.searchBar}>
+                    <Search size={18} color="#94a3b8" />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Search name or mobile..."
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                    />
+                    {searchQuery.length > 0 && (
+                        <TouchableOpacity onPress={() => setSearchQuery('')}>
+                            <X size={16} color="#94a3b8" />
+                        </TouchableOpacity>
+                    )}
+                </View>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.filterStrip}
+                >
+                    <Filter size={16} color="#64748b" style={{ marginRight: 8 }} />
+                    {['All', ...STATUS_OPTIONS].map((status) => (
+                        <TouchableOpacity
+                            key={status}
+                            style={[
+                                styles.quickFilter,
+                                statusFilter === status && { backgroundColor: getStatusColor(status) }
+                            ]}
+                            onPress={() => setStatusFilter(status)}
+                        >
+                            <Text style={[styles.quickFilterText, statusFilter === status && { color: '#fff' }]}>
+                                {status}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </View>
+
+            <FlatList
+                data={filteredLeads}
+                renderItem={renderLead}
+                keyExtractor={(item: any) => (item && item.id ? item.id.toString() : Math.random().toString())}
+                contentContainerStyle={styles.list}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                ListEmptyComponent={
+                    <View style={styles.empty}>
+                        <User size={48} color="#e2e8f0" />
+                        <Text style={styles.emptyText}>No matching leads found.</Text>
+                    </View>
+                }
+            />
+
+            {/* FAB - Add Lead */}
+            <TouchableOpacity
+                style={styles.fab}
+                onPress={() => setAddModalVisible(true)}
+            >
+                <Plus color="#fff" size={28} />
+            </TouchableOpacity>
+
+            {/* Add Lead Modal */}
+            <Modal
+                visible={addModalVisible}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setAddModalVisible(false)}
+            >
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={styles.modalOverlay}
+                >
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Add New Lead</Text>
+                            <TouchableOpacity onPress={() => setAddModalVisible(false)}>
+                                <X size={24} color="#64748b" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView style={styles.modalForm}>
+                            <Text style={styles.label}>Name *</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Prospect Name"
+                                value={newName}
+                                onChangeText={setNewName}
+                            />
+
+                            <Text style={styles.label}>Mobile *</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="10-digit Mobile"
+                                value={newMobile}
+                                onChangeText={setNewMobile}
+                                keyboardType="phone-pad"
+                                maxLength={10}
+                            />
+
+                            <Text style={styles.label}>Source</Text>
+                            <View style={styles.pickerContainer}>
+                                {Array.isArray(sources) && sources.map((s: any) => {
+                                    if (!s || !s.id) return null;
+                                    const sId = s.id.toString();
+                                    return (
+                                        <TouchableOpacity
+                                            key={sId}
+                                            style={[styles.pickerItem, newSource === sId && styles.pickerItemActive]}
+                                            onPress={() => setNewSource(sId)}
+                                        >
+                                            <Text style={[styles.pickerText, newSource === sId && styles.pickerTextActive]}>
+                                                {s.source_name}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+
+                            <Text style={styles.label}>Remarks</Text>
+                            <TextInput
+                                style={[styles.input, styles.textArea]}
+                                placeholder="Initial interaction details..."
+                                value={newRemarks}
+                                onChangeText={setNewRemarks}
+                                multiline
+                                numberOfLines={3}
+                            />
+
+                            <TouchableOpacity
+                                style={[styles.submitButton, submitting && styles.buttonDisabled]}
+                                onPress={handleAddLead}
+                                disabled={submitting}
+                            >
+                                <Text style={styles.submitButtonText}>
+                                    {submitting ? 'Creating...' : 'Create Lead'}
+                                </Text>
+                            </TouchableOpacity>
+                        </ScrollView>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
+
+            {/* Update Lead Modal */}
+            <Modal
+                visible={updateModalVisible}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setUpdateModalVisible(false)}
+            >
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={styles.modalOverlay}
+                >
+                    <View style={[styles.modalContent, { height: '85%' }]}>
+                        <View style={styles.modalHeader}>
+                            <View>
+                                <Text style={styles.modalTitle}>Lead Details</Text>
+                                <Text style={styles.modalSubtitle}>{selectedLead?.name}</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setUpdateModalVisible(false)}>
+                                <X size={24} color="#64748b" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Modal Tabs */}
+                        <View style={styles.modalTabs}>
+                            <TouchableOpacity
+                                style={[styles.modalTab, activeTab === 'update' && styles.modalTabActive]}
+                                onPress={() => setActiveTab('update')}
+                            >
+                                <Text style={[styles.modalTabText, activeTab === 'update' && styles.modalTabTextActive]}>Update</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalTab, activeTab === 'history' && styles.modalTabActive]}
+                                onPress={() => setActiveTab('history')}
+                            >
+                                <Text style={[styles.modalTabText, activeTab === 'history' && styles.modalTabTextActive]}>History</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView style={styles.modalForm} showsVerticalScrollIndicator={false}>
+                            {activeTab === 'update' ? (
+                                <View>
+                                    <Text style={styles.label}>New Status</Text>
+                                    <View style={styles.statusGrid}>
+                                        {STATUS_OPTIONS.map((status) => (
+                                            <TouchableOpacity
+                                                key={status}
+                                                style={[styles.statusItem, updateStatus === status && { backgroundColor: getStatusColor(status) }]}
+                                                onPress={() => setUpdateStatus(status)}
+                                            >
+                                                <Text style={[styles.statusItemText, updateStatus === status && { color: '#fff' }]}>
+                                                    {status}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+
+                                    <Text style={styles.label}>New Remark *</Text>
+                                    <TextInput
+                                        style={[styles.input, styles.textArea]}
+                                        placeholder="Enter latest interaction..."
+                                        value={updateRemark}
+                                        onChangeText={setUpdateRemark}
+                                        multiline
+                                        numberOfLines={3}
+                                    />
+
+                                    <Text style={styles.label}>Next Follow-up Date</Text>
+                                    <TouchableOpacity
+                                        style={styles.calendarInput}
+                                        onPress={() => setShowDatePicker(true)}
+                                    >
+                                        <CalendarIcon size={20} color="#6366f1" />
+                                        <Text style={styles.calendarInputText}>
+                                            {nextFollowUp || 'Today (Default)'}
+                                        </Text>
+                                        <ChevronRight size={18} color="#94a3b8" />
+                                    </TouchableOpacity>
+
+                                    {showDatePicker && (
+                                        <DateTimePicker
+                                            value={nextFollowUp ? new Date(nextFollowUp) : new Date()}
+                                            mode="date"
+                                            display="default"
+                                            onChange={onDateChange}
+                                            minimumDate={new Date()}
+                                        />
+                                    )}
+
+                                    <TouchableOpacity
+                                        style={[styles.submitButton, submitting && styles.buttonDisabled]}
+                                        onPress={handleUpdateLead}
+                                        disabled={submitting}
+                                    >
+                                        <CheckCircle2 color="#fff" size={20} />
+                                        <Text style={styles.submitButtonText}>
+                                            {submitting ? 'Updating...' : 'Save Interaction'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ) : (
+                                <View>
+                                    <View style={styles.historySection}>
+                                        <View style={styles.sectionHeader}>
+                                            <History size={16} color="#6366f1" />
+                                            <Text style={styles.sectionTitle}>Follow-up Records</Text>
+                                        </View>
+
+                                        {loadingHistory ? (
+                                            <ActivityIndicator size="small" color="#6366f1" style={{ marginVertical: 20 }} />
+                                        ) : history.length > 0 ? (
+                                            <View style={styles.timeline}>
+                                                {Array.isArray(history) && history.map((h, index) => {
+                                                    if (!h || !h.id) return null;
+                                                    return (
+                                                        <View key={h.id} style={styles.timelineItem}>
+                                                            <View style={styles.timelineMarker}>
+                                                                <View style={styles.timelineDot} />
+                                                                {index !== history.length - 1 && <View style={styles.timelineLine} />}
+                                                            </View>
+                                                            <View style={styles.timelineContent}>
+                                                                <View style={styles.timelineHeader}>
+                                                                    <Text style={styles.timelineDate}>
+                                                                        {formatDateTime(h.created_at)}
+                                                                    </Text>
+                                                                    {h.next_follow_up_date && (
+                                                                        <View style={styles.nextBadge}>
+                                                                            <CalendarIcon size={10} color="#6366f1" />
+                                                                            <Text style={styles.nextDateText}>{h.next_follow_up_date}</Text>
+                                                                        </View>
+                                                                    )}
+                                                                </View>
+                                                                <Text style={styles.timelineRemark}>{h.remark}</Text>
+                                                            </View>
+                                                        </View>
+                                                    );
+                                                })}
+                                            </View>
+                                        ) : (
+                                            <View style={styles.noHistoryContainer}>
+                                                <MessageSquare size={32} color="#cbd5e1" />
+                                                <Text style={styles.noHistory}>No previous records found.</Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                </View>
+                            )}
+                        </ScrollView>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
+
+            {/* Action Selection Modal (Long Press) */}
+            <Modal
+                visible={actionModalVisible}
+                animationType="fade"
+                transparent={true}
+                onRequestClose={() => setActionModalVisible(false)}
+            >
+                <TouchableOpacity
+                    style={styles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setActionModalVisible(false)}
+                >
+                    <View style={styles.actionSheet}>
+                        <View style={styles.actionSheetHeader}>
+                            <Text style={styles.actionSheetTitle}>{selectedLeadForAction?.name}</Text>
+                            <Text style={styles.actionSheetSubtitle}>{selectedLeadForAction?.mobile}</Text>
+                        </View>
+
+                        <TouchableOpacity style={styles.actionItem} onPress={() => { setActionModalVisible(false); openUpdateModal(selectedLeadForAction); }}>
+                            <History size={20} color="#6366f1" />
+                            <Text style={styles.actionItemText}>View Details & History</Text>
+                        </TouchableOpacity>
+
+                        {(userRole === 'admin' || userRole === 'owner') && (
+                            <>
+                                <TouchableOpacity style={styles.actionItem} onPress={() => setAssignModalVisible(true)}>
+                                    <UserPlus size={20} color="#6366f1" />
+                                    <Text style={styles.actionItemText}>Assign to Executive</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity style={[styles.actionItem, styles.deleteItem]} onPress={handleDeleteLead}>
+                                    <Trash2 size={20} color="#ef4444" />
+                                    <Text style={[styles.actionItemText, styles.deleteItemText]}>Delete Lead</Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
+
+                        <TouchableOpacity style={styles.cancelAction} onPress={() => setActionModalVisible(false)}>
+                            <Text style={styles.cancelActionText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
+            {/* Assign Modal */}
+            <Modal
+                visible={assignModalVisible}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setAssignModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { maxHeight: '60%' }]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Assign Lead</Text>
+                            <TouchableOpacity onPress={() => setAssignModalVisible(false)}>
+                                <X size={24} color="#64748b" />
+                            </TouchableOpacity>
+                        </View>
+                        <FlatList
+                            data={executives}
+                            keyExtractor={(item) => item?.id?.toString() || Math.random().toString()}
+                            renderItem={({ item }) => (
+                                <TouchableOpacity
+                                    style={styles.execItem}
+                                    onPress={() => handleAssignLead(item.id)}
+                                >
+                                    <View style={styles.execAvatar}>
+                                        <Text style={styles.execAvatarText}>{(item.name || 'E').charAt(0).toUpperCase()}</Text>
+                                    </View>
+                                    <Text style={styles.execName}>{item.name}</Text>
+                                    <ChevronRight size={18} color="#94a3b8" />
+                                </TouchableOpacity>
+                            )}
+                            ListEmptyComponent={
+                                <View style={styles.empty}>
+                                    <Text style={styles.emptyText}>No executives found.</Text>
+                                </View>
+                            }
+                        />
+                    </View>
+                </View>
+            </Modal>
+        </View>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#fff',
+    },
+    center: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    topTools: {
+        padding: 12,
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+    },
+    searchBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f1f5f9',
+        borderRadius: 10,
+        paddingHorizontal: 12,
+        height: 44,
+    },
+    searchInput: {
+        flex: 1,
+        marginLeft: 8,
+        fontSize: 14,
+        color: '#1e293b',
+    },
+    filterStrip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingLeft: 2,
+    },
+    quickFilter: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        backgroundColor: '#f1f5f9',
+        marginRight: 8,
+    },
+    quickFilterText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#64748b',
+    },
+    list: {
+        padding: 12,
+    },
+    card: {
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: '#f1f5f9',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.03,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    cardContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    avatarCompact: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#eff6ff',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    avatarTextCompact: {
+        color: '#6366f1',
+        fontWeight: '700',
+        fontSize: 15,
+    },
+    cardInfo: {
+        flex: 1,
+        marginLeft: 12,
+    },
+    leadName: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#1e293b',
+    },
+    mobileTextCompact: {
+        fontSize: 12,
+        color: '#64748b',
+        marginTop: 1,
+    },
+    itemRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    statusBadgeCompact: {
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 4,
+    },
+    statusTextCompact: {
+        fontSize: 9,
+        fontWeight: '900',
+        color: '#fff',
+        textTransform: 'uppercase',
+    },
+    callCircleCompact: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#6366f1',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    whatsappCircleCompact: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#10b981',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    actionRowLead: {
+        flexDirection: 'row',
+        gap: 8,
+        marginTop: 6,
+    },
+    empty: {
+        alignItems: 'center',
+        marginTop: 100,
+    },
+    emptyText: {
+        marginTop: 12,
+        color: '#94a3b8',
+        fontSize: 16,
+    },
+    fab: {
+        position: 'absolute',
+        bottom: 24,
+        right: 24,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: '#6366f1',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#6366f1',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 5,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        maxHeight: '90%',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: '#1e293b',
+    },
+    modalSubtitle: {
+        fontSize: 14,
+        color: '#64748b',
+        marginTop: 2,
+    },
+    modalTabs: {
+        flexDirection: 'row',
+        paddingHorizontal: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+    },
+    modalTab: {
+        paddingVertical: 14,
+        marginRight: 24,
+        borderBottomWidth: 2,
+        borderBottomColor: 'transparent',
+    },
+    modalTabActive: {
+        borderBottomColor: '#6366f1',
+    },
+    modalTabText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#94a3b8',
+    },
+    modalTabTextActive: {
+        color: '#6366f1',
+        fontWeight: '700',
+    },
+    modalForm: {
+        paddingVertical: 16,
+        paddingHorizontal: 20,
+    },
+    label: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#475569',
+        marginBottom: 8,
+        marginTop: 16,
+    },
+    calendarInput: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        borderRadius: 12,
+        padding: 14,
+        gap: 12,
+    },
+    calendarInputText: {
+        flex: 1,
+        fontSize: 16,
+        color: '#1e293b',
+        fontWeight: '500',
+    },
+    input: {
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        borderRadius: 12,
+        padding: 14,
+        fontSize: 16,
+        color: '#1e293b',
+    },
+    textArea: {
+        height: 100,
+        textAlignVertical: 'top',
+    },
+    pickerContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    pickerItem: {
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        backgroundColor: '#f1f5f9',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+    },
+    pickerItemActive: {
+        backgroundColor: '#6366f1',
+        borderColor: '#6366f1',
+    },
+    pickerText: {
+        fontSize: 13,
+        color: '#64748b',
+        fontWeight: '600',
+    },
+    pickerTextActive: {
+        color: '#fff',
+    },
+    statusGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 16,
+    },
+    actionSheet: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 24,
+        paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+        width: '100%',
+    },
+    actionSheetHeader: {
+        marginBottom: 20,
+        alignItems: 'center',
+    },
+    actionSheetTitle: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: '#1e293b',
+    },
+    actionSheetSubtitle: {
+        fontSize: 14,
+        color: '#64748b',
+        marginTop: 4,
+    },
+    actionItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+        gap: 12,
+    },
+    actionItemText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#475569',
+    },
+    deleteItem: {
+        borderBottomWidth: 0,
+    },
+    deleteItemText: {
+        color: '#ef4444',
+    },
+    cancelAction: {
+        marginTop: 12,
+        backgroundColor: '#f1f5f9',
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    cancelActionText: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#64748b',
+    },
+    execItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+        gap: 12,
+    },
+    execAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#f5f3ff',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    execAvatarText: {
+        color: '#6366f1',
+        fontWeight: '700',
+        fontSize: 16,
+    },
+    execName: {
+        flex: 1,
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1e293b',
+    },
+    statusItem: {
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 6,
+        backgroundColor: '#f1f5f9',
+    },
+    statusItemText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#64748b',
+    },
+    submitButton: {
+        backgroundColor: '#6366f1',
+        height: 56,
+        borderRadius: 16,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 10,
+        marginTop: 32,
+        marginBottom: 40,
+    },
+    submitButtonText: {
+        color: '#fff',
+        fontSize: 17,
+        fontWeight: '700',
+    },
+    buttonDisabled: {
+        opacity: 0.6,
+    },
+    // Timeline Styles
+    historySection: {
+        marginTop: 4,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 20,
+    },
+    sectionTitle: {
+        fontSize: 15,
+        fontWeight: '800',
+        color: '#334155',
+    },
+    timeline: {
+        marginLeft: 4,
+    },
+    timelineItem: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    timelineMarker: {
+        alignItems: 'center',
+        width: 12,
+    },
+    timelineDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#6366f1',
+        zIndex: 1,
+    },
+    timelineLine: {
+        width: 2,
+        flex: 1,
+        backgroundColor: '#e2e8f0',
+        marginVertical: -2,
+    },
+    timelineContent: {
+        flex: 1,
+        paddingBottom: 24,
+    },
+    timelineHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 6,
+    },
+    timelineDate: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#64748b',
+    },
+    timelineRemark: {
+        fontSize: 14,
+        color: '#1e293b',
+        lineHeight: 20,
+    },
+    nextBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#eff6ff',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    nextDateText: {
+        fontSize: 10,
+        color: '#6366f1',
+        fontWeight: '700',
+    },
+    noHistoryContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 60,
+        gap: 12,
+    },
+    noHistory: {
+        textAlign: 'center',
+        color: '#94a3b8',
+        fontSize: 14,
+    }
+});
