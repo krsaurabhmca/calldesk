@@ -198,6 +198,7 @@ include 'includes/header.php';
                         <tr style="background: #fafafa;">
                             <th style="padding: 0.75rem 1.5rem; color: var(--text-muted); font-weight: 700;">CALLER</th>
                             <th style="padding: 0.75rem 1.5rem; text-align: center;">TYPE</th>
+                            <th style="padding: 0.75rem 1.5rem; text-align: center;">REC</th>
                             <th style="padding: 0.75rem 1.5rem; text-align: right;">TIME</th>
                         </tr>
                     </thead>
@@ -209,12 +210,19 @@ include 'includes/header.php';
                         ?>
                         <tr style="border-bottom: 1px solid #f8fafc;">
                             <td style="padding: 0.75rem 1.5rem;">
-                                <div style="font-weight: 700; color: var(--text-main);"><?php echo $c['contact_name'] ?: ($c['phone_number'] ?: 'Unknown'); ?></div>
+                                <div style="font-weight: 700; color: var(--text-main);"><?php echo $c['contact_name'] ?: ($c['mobile'] ?: 'Unknown'); ?></div>
                             </td>
                             <td style="padding: 0.75rem 1.5rem; text-align: center;">
                                 <span style="font-size: 0.65rem; font-weight: 700; color: <?php echo $c['type'] == 'Incoming' ? 'var(--success)' : ($c['type'] == 'Missed' ? 'var(--danger)' : 'var(--primary)'); ?>;">
                                     <?php echo strtoupper($c['type']); ?>
                                 </span>
+                            </td>
+                            <td style="padding: 0.75rem 1.5rem; text-align: center;">
+                                <?php if ($c['recording_path']): ?>
+                                    <i class="fas fa-play-circle" style="color: var(--primary); cursor: pointer;" title="Recording Available" onclick="playRecord('<?php echo $c['recording_path']; ?>')"></i>
+                                <?php else: ?>
+                                    <span style="color: #ccc;">-</span>
+                                <?php endif; ?>
                             </td>
                             <td style="padding: 0.75rem 1.5rem; text-align: right; color: var(--text-muted); font-size: 0.7rem;">
                                 <?php echo date('h:i A', strtotime($c['created_at'])); ?>

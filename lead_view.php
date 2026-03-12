@@ -43,6 +43,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_followup'])) {
 // Fetch Follow-up History
 $history_res = mysqli_query($conn, "SELECT f.*, u.name as executive_name FROM follow_ups f JOIN users u ON f.executive_id = u.id JOIN leads l ON f.lead_id = l.id WHERE f.lead_id = $lead_id AND l.organization_id = $org_id ORDER BY f.created_at DESC");
 
+// Fetch Call Logs for this lead
+$calls_res = mysqli_query($conn, "SELECT * FROM call_logs WHERE lead_id = $lead_id ORDER BY call_time DESC LIMIT 20");
+
 include 'includes/header.php';
 ?>
 
@@ -113,6 +116,59 @@ include 'includes/header.php';
                 </div>
                 <button type="submit" class="btn btn-primary">Update & Save</button>
             </form>
+        </div>
+    </div>
+
+    </div>
+
+    <!-- Calls & Recordings -->
+    <div class="card" style="margin-bottom: 2rem;">
+        <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1.5rem; color: var(--primary);">Recent Calls & Recordings</h3>
+        <div class="table-container">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="text-align: left; border-bottom: 2px solid var(--gray-200);">
+                        <th style="padding: 0.75rem; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted);">Type</th>
+                        <th style="padding: 0.75rem; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted);">Time</th>
+                        <th style="padding: 0.75rem; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted);">Duration</th>
+                        <th style="padding: 0.75rem; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted);">Recording</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php while ($call = mysqli_fetch_assoc($calls_res)): ?>
+                    <tr style="border-bottom: 1px solid var(--gray-100);">
+                        <td style="padding: 0.75rem;">
+                            <span class="badge" style="background: <?php 
+                                echo $call['type'] == 'Incoming' ? '#dcfce7; color: #166534;' : 
+                                    ($call['type'] == 'Outgoing' ? '#e0e7ff; color: #3730a3;' : '#fee2e2; color: #991b1b;'); 
+                            ?>">
+                                <?php echo $call['type']; ?>
+                            </span>
+                        </td>
+                        <td style="padding: 0.75rem; font-size: 0.875rem;">
+                            <?php echo date('d M, h:i A', strtotime($call['call_time'])); ?>
+                        </td>
+                        <td style="padding: 0.75rem; font-size: 0.875rem;">
+                            <?php echo floor($call['duration']/60).'m '.($call['duration']%60).'s'; ?>
+                        </td>
+                        <td style="padding: 0.75rem;">
+                            <?php if ($call['recording_path']): ?>
+                                <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #f5f3ff; color: #6366f1; border: 1px solid #c7d2fe; width: auto;" onclick="playRecord('<?php echo $call['recording_path']; ?>')">
+                                    <i class="fas fa-play"></i> Play
+                                </button>
+                            <?php else: ?>
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">Not synced</span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <?php endwhile; ?>
+                    <?php if (mysqli_num_rows($calls_res) === 0): ?>
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 1.5rem; color: var(--text-muted); font-size: 0.875rem;">No call history for this lead.</td>
+                    </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 

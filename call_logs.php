@@ -115,6 +115,7 @@ include 'includes/header.php';
                     <th>Duration</th>
                     <th>Executive</th>
                     <th>Call Time</th>
+                    <th>Recording</th>
                     <th>Action</th>
                 </tr>
             </thead>
@@ -143,17 +144,26 @@ include 'includes/header.php';
                     <td><?php echo $row['executive_name']; ?></td>
                     <td><?php echo date('d M, Y h:i A', strtotime($row['call_time'])); ?></td>
                     <td>
+                        <?php if ($row['recording_path']): ?>
+                            <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #f5f3ff; color: #6366f1; border: 1px solid #c7d2fe; width: auto;" onclick="playRecord('<?php echo $row['recording_path']; ?>')">
+                                <i class="fas fa-play"></i> Play
+                            </button>
+                        <?php else: ?>
+                            <span style="color: var(--text-muted); font-size: 0.75rem;">No Recording</span>
+                        <?php endif; ?>
+                    </td>
+                    <td>
                         <?php if (!$row['lead_id']): ?>
                             <a href="lead_add.php?mobile=<?php echo $row['mobile']; ?>&call_id=<?php echo $row['id']; ?>" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: var(--success); color: white;">+ Add Lead</a>
                         <?php else: ?>
-                            <span style="font-size: 0.75rem; color: var(--text-muted);">Lead Linked</span>
+                            <a href="lead_view.php?id=<?php echo $row['lead_id']; ?>" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: var(--primary); color: white; text-decoration: none;">View Lead</a>
                         <?php endif; ?>
                     </td>
                 </tr>
                 <?php endwhile; ?>
                 <?php if (mysqli_num_rows($result) === 0): ?>
                     <tr>
-                        <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">No logs found.</td>
+                        <td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">No logs found.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>
