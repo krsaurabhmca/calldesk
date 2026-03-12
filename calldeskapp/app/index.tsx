@@ -11,10 +11,17 @@ export default function Index() {
   }, []);
 
   const checkAuthStatus = async () => {
-    const auth = await isAuthenticated();
-    if (auth) {
-      router.replace('/(tabs)');
-    } else {
+    console.log('App Startup: Checking auth status...');
+    try {
+      const auth = await isAuthenticated();
+      console.log('App Startup: Auth check result:', auth);
+      if (auth) {
+        router.replace('/(tabs)');
+      } else {
+        router.replace('/(auth)/login');
+      }
+    } catch (e) {
+      console.error('App Startup: Error in auth check:', e);
       router.replace('/(auth)/login');
     }
   };
