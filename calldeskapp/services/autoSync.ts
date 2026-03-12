@@ -1,93 +1,103 @@
 /**
  * autoSync.ts
  *
- * Runs silently on app open — no UI, no alerts.
- * 1. Syncs call logs from the device's native CallLog API
- * 2. Syncs new MIUI recordings to the server
+ * Silent auto-sync triggered on app open.
+ * - Call Logs:  reads device call history → uploads via sync_calls.php
+ * - Recordings: scans MIUI folder → uploads new files to server
  *
- * Throttled with a timestamp so it doesn't run more than once per 5 minutes.
+ * Throttled: won't run more than once every 5 minutes.
+ * Completely silent — no UI, no alerts, no progress indicators.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
+import { TOKEN_KEY } from '../constants/Config';
 import { syncRecordings } from './recording';
-import { TOKEN_KEY, BASE_URL } from '../constants/Config';
+import { fetchAndSyncCallLogs, checkCallLogPermission } from './callLog';
 
-const LAST_SYNC_KEY   = 'auto_last_sync_ts';
-const SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes minimum between auto-syncs
+const LAST_SYNC_KEY    = 'auto_last_sync_ts';
+const SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
-/** Read the last sync timestamp */
 const getLastSync = async (): Promise<number> => {
     const val = await AsyncStorage.getItem(LAST_SYNC_KEY);
     return val ? parseInt(val, 10) : 0;
 };
 
-/** Save the current timestamp as last sync */
 const setLastSync = async () => {
     await AsyncStorage.setItem(LAST_SYNC_KEY, Date.now().toString());
 };
 
-/** Upload call logs from the device using the native CallLog.getAll polyfill */
-const syncCallLogs = async (): Promise<void> => {
-    if (Platform.OS !== 'android') return;
-
+/**
+ * Silently syncs call logs from the device.
+ * Requires READ_CALL_LOG permission to be already granted.
+ * If permission is missing it skips without showing any UI.
+ */
+const autoSyncCallLogs = async (): Promise<void> => {
     try {
-        // Use react-native-call-log if available, else skip
-        // @ts-ignore
-        const CallLog = require('react-native-call-log');
-        const token   = await SecureStore.getItemAsync(TOKEN_KEY);
-        if (!token) return;
-
-        const logs: any[] = await CallLog.getAll(200); // Fetch last 200 call logs
-        if (!logs || logs.length === 0) return;
-
-        const formattedLogs = logs.map((log: any) => ({
-            mobile    : log.phoneNumber?.replace(/\D/g, '').slice(-10) || '',
-            type      : log.type === '1' ? 'Incoming' : log.type === '2' ? 'Outgoing' : 'Missed',
-            duration  : parseInt(log.duration || '0', 10),
-            call_time : new Date(parseInt(log.timestamp)).toISOString().replace('T', ' ').substring(0, 19),
-            caller_name: log.name || '',
-        })).filter((l: any) => l.mobile.length === 10);
-
-        const url = `${BASE_URL}/sync_calls.php?token=${token}`;
-        await fetch(url, {
-            method : 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body   : JSON.stringify({ logs: formattedLogs }),
-        });
-
-        console.log(`AutoSync: Uploaded ${formattedLogs.length} call logs`);
+        const hasPermission = await checkCallLogPermission();
+        if (!hasPermission) {
+            console.log('AutoSync: Call log permission not granted yet — skipping');
+            return;
+        }
+        const result = await fetchAndSyncCallLogs();
+        if (result.success) {
+            console.log(`AutoSync: Call logs synced — ${result?.data?.synced ?? 0} new entries`);
+        } else {
+            console.log('AutoSync: Call log sync skipped —', result.message);
+        }
     } catch (e: any) {
-        // react-native-call-log not installed or permission denied — skip silently
-        console.log('AutoSync: Call log sync skipped -', e?.message || e);
+        console.log('AutoSync: Call log sync error —', e?.message || e);
     }
 };
 
-/** Main auto-sync entry point — call this from _layout.tsx */
+/**
+ * Silently syncs MIUI recordings folder to server.
+ * Only uploads files not previously uploaded (uses local filename cache).
+ */
+const autoSyncRecordings = async (): Promise<void> => {
+    try {
+        const result = await syncRecordings();
+        if (result.success && (result.count ?? 0) > 0) {
+            console.log(`AutoSync: Recordings synced — ${result.count} new files`);
+        } else {
+            console.log('AutoSync: Recordings — no new files or path not set');
+        }
+    } catch (e: any) {
+        console.log('AutoSync: Recording sync error —', e?.message || e);
+    }
+};
+
+/**
+ * Main entry point — call from _layout.tsx on app mount.
+ * Throttled to once per 5 minutes. Checks token before running.
+ */
 export const runAutoSync = async (): Promise<void> => {
     try {
         const token = await SecureStore.getItemAsync(TOKEN_KEY);
-        if (!token) return; // Not logged in
+        if (!token) {
+            console.log('AutoSync: No auth token — not logged in, skipping');
+            return;
+        }
 
         const last = await getLastSync();
         const now  = Date.now();
 
         if (now - last < SYNC_INTERVAL_MS) {
-            console.log(`AutoSync: Skipped (last sync was ${Math.round((now - last) / 1000)}s ago)`);
+            const secsAgo = Math.round((now - last) / 1000);
+            console.log(`AutoSync: Skipped — last ran ${secsAgo}s ago (cooldown: 5 min)`);
             return;
         }
 
-        console.log('AutoSync: Starting silent sync...');
-        await setLastSync(); // Mark sync started immediately to prevent race conditions
+        console.log('AutoSync: Starting silent background sync...');
+        await setLastSync();
 
-        // Run call-log sync and recording sync in parallel
+        // Run both in parallel — one won't block the other
         await Promise.allSettled([
-            syncCallLogs(),
-            syncRecordings(),
+            autoSyncCallLogs(),
+            autoSyncRecordings(),
         ]);
 
-        console.log('AutoSync: Done');
-    } catch (err) {
-        console.error('AutoSync Error:', err);
+        console.log('AutoSync: Complete ✓');
+    } catch (err: any) {
+        console.error('AutoSync top-level error:', err?.message || err);
     }
 };

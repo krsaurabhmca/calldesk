@@ -1,20 +1,25 @@
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
 import { syncRecordings } from './recording';
+import { fetchAndSyncCallLogs, checkCallLogPermission } from './callLog';
 import { Platform } from 'react-native';
 
 const RECORDING_SYNC_TASK = 'recording-sync-task';
 
-// Define the task
+// Define the background task — runs call log + recording sync every 15 min
 TaskManager.defineTask(RECORDING_SYNC_TASK, async () => {
     try {
-        console.log('Background Sync: Starting recording sync...');
-        const result = await syncRecordings();
-        console.log('Background Sync result:', result);
-        
-        return result.success 
-            ? BackgroundFetch.BackgroundFetchResult.NewData 
-            : BackgroundFetch.BackgroundFetchResult.Failed;
+        console.log('Background Sync: Starting...');
+
+        const results = await Promise.allSettled([
+            // Sync call logs if permission already granted
+            checkCallLogPermission().then(ok => ok ? fetchAndSyncCallLogs() : Promise.resolve(null)),
+            // Sync new recordings
+            syncRecordings(),
+        ]);
+
+        console.log('Background Sync done:', results.map(r => r.status));
+        return BackgroundFetch.BackgroundFetchResult.NewData;
     } catch (error) {
         console.error('Background Sync Error:', error);
         return BackgroundFetch.BackgroundFetchResult.Failed;

@@ -82,9 +82,27 @@ export default function CallsSyncScreen() {
         setLoading(false);
     };
 
+    const [hasSyncedOnce, setHasSyncedOnce] = useState(false);
+
     useFocusEffect(
         useCallback(() => {
             fetchLogs();
+
+            // Auto-sync call logs silently on first focus (no button press needed)
+            if (!hasSyncedOnce) {
+                setHasSyncedOnce(true);
+                (async () => {
+                    const hasPermission = await checkCallLogPermission();
+                    if (hasPermission) {
+                        const result = await fetchAndSyncCallLogs();
+                        if (result.success) {
+                            fetchLogs(); // Refresh list after sync
+                        }
+                    }
+                    // If no permission, we don't show any alert — user can tap Sync button manually
+                })();
+            }
+
             return () => {
                 if (sound) {
                     sound.unloadAsync();
