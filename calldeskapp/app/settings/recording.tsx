@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Platform } from 'react-native';
-import { Folder, Save, RefreshCw, CheckCircle2, AlertCircle, ChevronLeft, Mic } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Platform, TextInput } from 'react-native';
+import { Folder, Save, RefreshCw, CheckCircle2, AlertCircle, ChevronLeft, Mic, Keyboard } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
 import { getRecordingPath, saveRecordingPath, syncRecordings } from '../../services/recording';
 
+const SUGGESTED_MIUI_PATH = '/storage/emulated/0/MIUI/sound_recorder/call_rec';
+
 export default function RecordingSettings() {
-    const [path, setPath] = useState<string | null>(null);
+    const [path, setPath] = useState<string>('');
     const [isSyncing, setIsSyncing] = useState(false);
     const [statusMsg, setStatusMsg] = useState('');
     const router = useRouter();
@@ -17,32 +19,43 @@ export default function RecordingSettings() {
 
     const loadSettings = async () => {
         const savedPath = await getRecordingPath();
-        setPath(savedPath);
+        if (savedPath) setPath(savedPath);
+    };
+
+    const handleSavePath = async () => {
+        if (!path.trim()) {
+            Alert.alert('Error', 'Please enter a valid path');
+            return;
+        }
+        await saveRecordingPath(path.trim());
+        Alert.alert('Success', 'Recording path saved');
+    };
+
+    const handleUsePreset = () => {
+        setPath(SUGGESTED_MIUI_PATH);
     };
 
     const handleBrowse = async () => {
         try {
-            // DocumentPicker in Expo can't easily pick "directories" on all versions,
-            // but we can ask user to pick ONE recording file and we'll extract the directory.
             const result = await DocumentPicker.getDocumentAsync({
                 type: 'audio/*',
                 copyToCacheDirectory: false,
             });
 
             if (!result.canceled && result.assets && result.assets.length > 0) {
-                const fileUri = result.assets[0].uri;
-                // Standard Android URI: content://... or file:///...
-                // We want the folder path.
-                const parts = fileUri.split('/');
-                parts.pop(); // remove filename
-                const folderPath = parts.join('/');
-                
-                setPath(folderPath);
-                await saveRecordingPath(folderPath);
-                Alert.alert('Path Set', 'Recording folder path has been saved.');
+                // On modern Android, the URI is content://...
+                // We show an alert explaining how to find the path
+                Alert.alert(
+                    'Manual Path Required',
+                    'Due to Android security, we cannot detect the folder automatically from a file selection.\n\nMost MIUI phones use:\n' + SUGGESTED_MIUI_PATH,
+                    [
+                        { text: 'Use MIUI Default', onPress: handleUsePreset },
+                        { text: 'OK' }
+                    ]
+                );
             }
         } catch (err) {
-            Alert.alert('Error', 'Failed to pick recording path');
+            Alert.alert('Error', 'Failed to open file picker');
         }
     };
 
@@ -63,12 +76,12 @@ export default function RecordingSettings() {
             if (result.success) {
                 Alert.alert('Sync Complete', result.message);
             } else {
-                Alert.alert('Sync Failed', result.message);
+                Alert.alert('Sync Failed', result.message + '\n\nPlease check if the path is correct and permissions are granted.');
             }
         } catch (err) {
             setIsSyncing(false);
             setStatusMsg('');
-            Alert.alert('Error', 'An unexpected error occurred during sync');
+            Alert.alert('Error', 'Sync failed. Error: ' + err);
         }
     };
 
@@ -82,23 +95,36 @@ export default function RecordingSettings() {
             </View>
 
             <View style={styles.section}>
-                <Text style={styles.sectionLabel}>MIUI Recording Folder</Text>
+                <Text style={styles.sectionLabel}>MIUI Recording Folder Path</Text>
                 <View style={styles.pathCard}>
-                    <Text style={styles.pathText}>
-                        {path || 'Not set. Usually: MIUI/sound_recorder/call_rec'}
-                    </Text>
-                    <TouchableOpacity style={styles.browseBtn} onPress={handleBrowse}>
-                        <Folder size={20} color="#fff" />
-                        <Text style={styles.browseBtnText}>Browse & Select Folder</Text>
-                    </TouchableOpacity>
+                    <TextInput 
+                        style={styles.input}
+                        value={path}
+                        onChangeText={setPath}
+                        placeholder="/storage/emulated/0/MIUI/sound_recorder/call_rec"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                    />
+                    
+                    <View style={styles.buttonRow}>
+                        <TouchableOpacity style={styles.saveBtn} onPress={handleSavePath}>
+                            <Save size={18} color="#fff" />
+                            <Text style={styles.btnText}>Save Path</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.presetBtn} onPress={handleUsePreset}>
+                            <Mic size={18} color="#6366f1" />
+                            <Text style={styles.presetBtnText}>MIUI Default</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
                 <Text style={styles.infoText}>
-                    Tip: Select any audio file in your call recording folder to detect the path.
+                    Note: For MIUI, use the path above. If your recordings are in a different folder, please enter the absolute Android path.
                 </Text>
             </View>
 
             <View style={styles.section}>
-                <Text style={styles.sectionLabel}>Actions</Text>
+                <Text style={styles.sectionLabel}>Sync Controls</Text>
                 <TouchableOpacity 
                     style={[styles.syncBtn, isSyncing && styles.disabledBtn]} 
                     onPress={handleManualSync}
@@ -172,15 +198,22 @@ const styles = StyleSheet.create({
         borderColor: '#e2e8f0',
         gap: 16,
     },
-    pathText: {
+    input: {
         fontSize: 14,
         color: '#1e293b',
         fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
         backgroundColor: '#f1f5f9',
         padding: 12,
         borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
     },
-    browseBtn: {
+    buttonRow: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    saveBtn: {
+        flex: 1,
         backgroundColor: '#6366f1',
         flexDirection: 'row',
         alignItems: 'center',
@@ -189,8 +222,24 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         gap: 8,
     },
-    browseBtnText: {
+    btnText: {
         color: '#fff',
+        fontWeight: '600',
+    },
+    presetBtn: {
+        flex: 1,
+        backgroundColor: '#fff',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 12,
+        borderRadius: 12,
+        gap: 8,
+        borderWidth: 1,
+        borderColor: '#6366f1',
+    },
+    presetBtnText: {
+        color: '#6366f1',
         fontWeight: '600',
     },
     infoText: {
