@@ -38,21 +38,42 @@ if (move_uploaded_file($_FILES['recording']['tmp_name'], $target_path)) {
     $db_path = 'uploads/recordings/' . $org_id . '/' . $new_filename;
     
     // Find the matching call log
-    // We try to match with a small window (e.g., +/- 60 seconds) because phone clocks might differ slightly from file timestamps
+    // Increased window to 600 seconds (10 mins) for better matching
     $sql = "UPDATE call_logs 
             SET recording_path = '$db_path' 
             WHERE mobile = '$mobile' 
-            AND ABS(TIMESTAMPDIFF(SECOND, call_time, '$call_time')) < 120
+            AND ABS(TIMESTAMPDIFF(SECOND, call_time, '$call_time')) < 600
             AND organization_id = $org_id 
             AND recording_path IS NULL
             LIMIT 1";
-    
+
+    // For debugging, let's see if there are ANY logs for this mobile
+    $debug_sql = "SELECT id, call_time, TIMESTAMPDIFF(SECOND, call_time, '$call_time') as diff 
+                 FROM call_logs 
+                 WHERE mobile = '$mobile' 
+                 AND organization_id = $org_id 
+                 ORDER BY ABS(TIMESTAMPDIFF(SECOND, call_time, '$call_time')) ASC 
+                 LIMIT 3";
+    $debug_res = mysqli_query($conn, $debug_sql);
+    $nearby_logs = [];
+    while($drow = mysqli_fetch_assoc($debug_res)) {
+        $nearby_logs[] = $drow;
+    }
+
     if (mysqli_query($conn, $sql) && mysqli_affected_rows($conn) > 0) {
         sendResponse(true, 'Recording uploaded and matched successfully', ['path' => $db_path]);
     } else {
-        // If no match found, we still save it but maybe we should create a log? 
-        // For now, let's just say uploaded but unmatched.
-        sendResponse(true, 'Recording uploaded but no matching call log found in time window', ['path' => $db_path, 'unmatched' => true]);
+        // If no match found, we still save it but provide debug info
+        sendResponse(true, 'Recording uploaded but no matching call log found in time window', [
+            'path' => $db_path, 
+            'unmatched' => true,
+            'debug' => [
+                'target_mobile' => $mobile,
+                'target_time' => $call_time,
+                'nearby_logs' => $nearby_logs,
+                'sql' => $sql
+            ]
+        ]);
     }
 } else {
     sendResponse(false, 'Failed to save uploaded file', null, 500);
