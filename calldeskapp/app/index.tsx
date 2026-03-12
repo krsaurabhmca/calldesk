@@ -1,135 +1,181 @@
-import { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, Animated } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, Text, ActivityIndicator, StyleSheet, Animated, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
+import { TOKEN_KEY } from '../constants/Config';
 import { isAuthenticated } from '../services/auth';
-import { fetchAndSyncCallLogs, checkCallLogPermission } from '../services/callLog';
-import { syncRecordings, getRecordingPath } from '../services/recording';
+import { checkCallLogPermission, fetchAndSyncCallLogs } from '../services/callLog';
+import { getRecordingPath, syncRecordings } from '../services/recording';
 
-const STEPS = [
-    'Checking authentication...',
-    'Syncing call logs...',
-    'Syncing recordings...',
-    'All done! Loading app...',
+type SyncStatus = 'pending' | 'running' | 'done' | 'skipped' | 'error';
+
+interface SyncStep {
+    label: string;
+    detail: string;
+    status: SyncStatus;
+}
+
+const initialSteps: SyncStep[] = [
+    { label: 'Authenticating', detail: 'Verifying your session...', status: 'pending' },
+    { label: 'Call Logs', detail: 'Waiting...', status: 'pending' },
+    { label: 'Recordings', detail: 'Waiting...', status: 'pending' },
 ];
+
+const statusIcon = (s: SyncStatus) => {
+    if (s === 'running') return '⏳';
+    if (s === 'done')    return '✅';
+    if (s === 'skipped') return '⏭️';
+    if (s === 'error')   return '⚠️';
+    return '○';
+};
 
 export default function Index() {
     const router = useRouter();
-    const [step, setStep] = useState(0);
-    const [detail, setDetail] = useState('');
-    const [fadeAnim] = useState(new Animated.Value(1));
+    const [steps, setSteps] = useState<SyncStep[]>(initialSteps);
+    const [currentStep, setCurrentStep] = useState(0);
+    const fadeAnim = useRef(new Animated.Value(1)).current;
 
-    const animateStep = (newStep: number, detailMsg: string) => {
+    const updateStep = (index: number, update: Partial<SyncStep>) => {
+        setSteps(prev => {
+            const next = [...prev];
+            next[index] = { ...next[index], ...update };
+            return next;
+        });
+        setCurrentStep(index);
+
         Animated.sequence([
-            Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
-            Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+            Animated.timing(fadeAnim, { toValue: 0.6, duration: 100, useNativeDriver: true }),
+            Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
         ]).start();
-        setStep(newStep);
-        setDetail(detailMsg);
     };
 
     useEffect(() => {
-        startupSequence();
+        startup();
     }, []);
 
-    const startupSequence = async () => {
-        // Step 0 — Auth check
-        animateStep(0, '');
-        let isAuth = false;
+    const delay = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+
+    const startup = async () => {
+        await delay(300); // Let UI render first
+
+        // ── Step 0: Auth ────────────────────────────────────────────────
+        updateStep(0, { status: 'running', detail: 'Checking token...' });
+        let token: string | null = null;
         try {
-            isAuth = await isAuthenticated();
-        } catch (e) {
+            token = await SecureStore.getItemAsync(TOKEN_KEY);
+        } catch (e) {}
+
+        if (!token) {
+            updateStep(0, { status: 'skipped', detail: 'Not logged in' });
+            await delay(300);
             router.replace('/(auth)/login');
             return;
         }
+        updateStep(0, { status: 'done', detail: 'Session valid ✓' });
+        await delay(300);
 
-        if (!isAuth) {
-            router.replace('/(auth)/login');
-            return;
-        }
-
-        // Step 1 — Sync call logs
-        animateStep(1, 'Reading device call history...');
-        try {
-            const hasPermission = await checkCallLogPermission();
-            if (hasPermission) {
-                const result = await fetchAndSyncCallLogs();
-                if (result.success) {
-                    animateStep(1, `✓ ${result?.data?.synced ?? 0} new call logs uploaded`);
+        // ── Step 1: Call Logs ───────────────────────────────────────────
+        if (Platform.OS === 'android') {
+            updateStep(1, { status: 'running', detail: 'Checking permission...' });
+            try {
+                const hasPerm = await checkCallLogPermission();
+                if (!hasPerm) {
+                    updateStep(1, { status: 'skipped', detail: 'Permission not granted yet. Tap "Sync" in Calls tab.' });
                 } else {
-                    animateStep(1, 'Call logs up to date');
+                    updateStep(1, { status: 'running', detail: 'Reading device call history...' });
+                    const result = await fetchAndSyncCallLogs();
+                    console.log('Startup call log sync result:', JSON.stringify(result));
+                    if (result?.success) {
+                        const count = result?.data?.synced ?? result?.synced ?? 0;
+                        updateStep(1, { status: 'done', detail: `${count} new call logs uploaded` });
+                    } else {
+                        updateStep(1, { status: 'error', detail: result?.message || 'Sync failed' });
+                    }
                 }
-            } else {
-                animateStep(1, 'Call log permission not set — skipping');
+            } catch (e: any) {
+                console.error('Startup call log error:', e);
+                updateStep(1, { status: 'error', detail: e?.message || 'Unknown error' });
             }
-        } catch (e) {
-            animateStep(1, 'Call log sync skipped');
+        } else {
+            updateStep(1, { status: 'skipped', detail: 'Android only' });
         }
-
-        await delay(600);
-
-        // Step 2 — Sync recordings
-        animateStep(2, 'Checking recording folder...');
-        try {
-            const path = await getRecordingPath();
-            if (path) {
-                animateStep(2, 'Uploading new recordings...');
-                const result = await syncRecordings();
-                if (result.success) {
-                    const count = result.count ?? 0;
-                    animateStep(2, count > 0 ? `✓ ${count} new recording(s) uploaded` : '✓ Recordings up to date');
-                } else {
-                    animateStep(2, result.message || 'Recording sync skipped');
-                }
-            } else {
-                animateStep(2, 'Recording folder not set — skipping');
-            }
-        } catch (e: any) {
-            animateStep(2, 'Recording sync skipped');
-        }
-
-        await delay(700);
-
-        // Step 3 — Done
-        animateStep(3, '');
         await delay(400);
 
+        // ── Step 2: Recordings ──────────────────────────────────────────
+        updateStep(2, { status: 'running', detail: 'Checking recording path...' });
+        try {
+            const path = await getRecordingPath();
+            console.log('Recording path:', path);
+            if (!path) {
+                updateStep(2, { status: 'skipped', detail: 'No folder set. Go to Settings → Recording.' });
+            } else {
+                updateStep(2, { status: 'running', detail: 'Scanning folder for new recordings...' });
+                const result = await syncRecordings((msg) => {
+                    updateStep(2, { status: 'running', detail: msg });
+                });
+                console.log('Startup recording sync result:', JSON.stringify(result));
+                if (result?.success) {
+                    const count = result?.count ?? 0;
+                    updateStep(2, {
+                        status: 'done',
+                        detail: count > 0 ? `${count} recording(s) uploaded` : 'All up to date',
+                    });
+                } else {
+                    updateStep(2, { status: 'error', detail: result?.message || 'Sync failed' });
+                }
+            }
+        } catch (e: any) {
+            console.error('Startup recording sync error:', e);
+            updateStep(2, { status: 'error', detail: e?.message || 'Unknown error' });
+        }
+        await delay(700);
+
+        // ── Done: Navigate ──────────────────────────────────────────────
         router.replace('/(tabs)');
     };
 
-    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
     return (
         <View style={styles.container}>
-            {/* Logo / App Name */}
+            {/* Logo */}
             <View style={styles.logoBlock}>
                 <View style={styles.logoIcon}>
                     <Text style={styles.logoEmoji}>📞</Text>
                 </View>
                 <Text style={styles.appName}>CallDesk</Text>
-                <Text style={styles.appTagline}>CRM & Call Sync</Text>
+                <Text style={styles.tagline}>Please wait while we sync your data</Text>
             </View>
 
-            {/* Sync Progress Card */}
+            {/* Steps */}
             <View style={styles.card}>
-                <ActivityIndicator size="small" color="#6366f1" style={{ marginBottom: 16 }} />
-                <Animated.View style={{ opacity: fadeAnim }}>
-                    <Text style={styles.stepText}>{STEPS[step]}</Text>
-                    {detail ? <Text style={styles.detailText}>{detail}</Text> : null}
-                </Animated.View>
-
-                {/* Progress dots */}
-                <View style={styles.dotsRow}>
-                    {STEPS.map((_, i) => (
-                        <View
-                            key={i}
-                            style={[
-                                styles.dot,
-                                i <= step && styles.dotActive,
-                                i === step && styles.dotCurrent,
-                            ]}
-                        />
-                    ))}
-                </View>
+                {steps.map((s, i) => (
+                    <View key={i} style={[styles.stepRow, i < steps.length - 1 && styles.stepRowBorder]}>
+                        <View style={styles.stepLeft}>
+                            <Text style={styles.stepIcon}>{statusIcon(s.status)}</Text>
+                        </View>
+                        <View style={styles.stepRight}>
+                            <View style={styles.stepLabelRow}>
+                                <Text style={[
+                                    styles.stepLabel,
+                                    s.status === 'running' && { color: '#6366f1', fontWeight: '800' },
+                                    s.status === 'done'    && { color: '#10b981' },
+                                    s.status === 'error'   && { color: '#ef4444' },
+                                    s.status === 'skipped' && { color: '#94a3b8' },
+                                ]}>
+                                    {s.label}
+                                </Text>
+                                {s.status === 'running' && (
+                                    <ActivityIndicator size="small" color="#6366f1" style={{ marginLeft: 8 }} />
+                                )}
+                            </View>
+                            <Text style={[
+                                styles.stepDetail,
+                                s.status === 'error' && { color: '#ef4444' },
+                            ]} numberOfLines={2}>
+                                {s.detail}
+                            </Text>
+                        </View>
+                    </View>
+                ))}
             </View>
 
             <Text style={styles.version}>v1.3.0</Text>
@@ -143,11 +189,11 @@ const styles = StyleSheet.create({
         backgroundColor: '#f8fafc',
         justifyContent: 'center',
         alignItems: 'center',
-        paddingHorizontal: 32,
+        paddingHorizontal: 28,
     },
     logoBlock: {
         alignItems: 'center',
-        marginBottom: 40,
+        marginBottom: 36,
     },
     logoIcon: {
         width: 80,
@@ -159,31 +205,30 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         shadowColor: '#6366f1',
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
+        shadowOpacity: 0.35,
         shadowRadius: 16,
         elevation: 12,
     },
-    logoEmoji: {
-        fontSize: 38,
-    },
+    logoEmoji: { fontSize: 38 },
     appName: {
-        fontSize: 32,
+        fontSize: 30,
         fontWeight: '800',
         color: '#0f172a',
         letterSpacing: -0.5,
     },
-    appTagline: {
-        fontSize: 13,
+    tagline: {
+        fontSize: 12,
         color: '#94a3b8',
         fontWeight: '600',
-        marginTop: 4,
+        marginTop: 6,
+        textAlign: 'center',
     },
     card: {
         width: '100%',
         backgroundColor: '#fff',
         borderRadius: 20,
-        padding: 24,
-        alignItems: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 4,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.06,
@@ -192,36 +237,41 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#f1f5f9',
     },
-    stepText: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#1e293b',
-        textAlign: 'center',
-    },
-    detailText: {
-        fontSize: 12,
-        color: '#64748b',
-        marginTop: 6,
-        textAlign: 'center',
-        fontWeight: '500',
-    },
-    dotsRow: {
+    stepRow: {
         flexDirection: 'row',
-        gap: 8,
-        marginTop: 20,
+        alignItems: 'flex-start',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
     },
-    dot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: '#e2e8f0',
+    stepRowBorder: {
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
     },
-    dotActive: {
-        backgroundColor: '#c7d2fe',
+    stepLeft: {
+        width: 32,
+        alignItems: 'center',
+        paddingTop: 1,
     },
-    dotCurrent: {
-        backgroundColor: '#6366f1',
-        width: 24,
+    stepIcon: {
+        fontSize: 16,
+    },
+    stepRight: {
+        flex: 1,
+    },
+    stepLabelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    stepLabel: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#475569',
+    },
+    stepDetail: {
+        fontSize: 11,
+        color: '#94a3b8',
+        marginTop: 3,
+        lineHeight: 16,
     },
     version: {
         marginTop: 24,
