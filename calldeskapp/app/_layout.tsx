@@ -3,13 +3,19 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SnackbarProvider } from "../context/SnackbarContext";
 import { registerBackgroundSync } from "../services/backgroundSync";
+import { runAutoSync } from "../services/autoSync";
 
 export default function RootLayout() {
   useEffect(() => {
-    // Register background sync after a short delay to ensure app UI is ready
-    const timer = setTimeout(() => {
+    // Delay slightly so the app UI fully loads first
+    const timer = setTimeout(async () => {
+      // 1. Register background fetch task (runs when app is in background/closed)
       registerBackgroundSync();
-    }, 2000);
+
+      // 2. Run auto-sync silently right now (on foreground open)
+      await runAutoSync();
+    }, 3000);
+
     return () => clearTimeout(timer);
   }, []);
 
