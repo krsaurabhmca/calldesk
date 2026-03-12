@@ -27,6 +27,10 @@ export const markFileAsUploaded = async (filename: string) => {
     }
 };
 
+export const resetUploadedFiles = async () => {
+    await AsyncStorage.removeItem(UPLOADED_FILES_KEY);
+};
+
 /**
  * Parses MIUI filename to extract mobile and call time
  * Example: "Name(9876543210)_20230520153045.mp3"

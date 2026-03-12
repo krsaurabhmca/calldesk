@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Platform, TextInput } from 'react-native';
-import { Folder, Save, RefreshCw, CheckCircle2, AlertCircle, ChevronLeft, Mic, Keyboard } from 'lucide-react-native';
+import { Folder, Save, RefreshCw, CheckCircle2, AlertCircle, ChevronLeft, Mic, Keyboard, Trash2 } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
-import { getRecordingPath, saveRecordingPath, syncRecordings } from '../../services/recording';
+import { getRecordingPath, saveRecordingPath, syncRecordings, resetUploadedFiles } from '../../services/recording';
 
 const SUGGESTED_MIUI_PATH = '/storage/emulated/0/MIUI/sound_recorder/call_rec';
 
@@ -57,6 +57,24 @@ export default function RecordingSettings() {
         } catch (err) {
             Alert.alert('Error', 'Failed to open file picker');
         }
+    };
+
+    const handleResetHistory = () => {
+        Alert.alert(
+            'Reset Sync History',
+            'Are you sure you want to reset the sync history? This will allow the app to re-sync all recordings from your folder.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                    text: 'Reset', 
+                    style: 'destructive', 
+                    onPress: async () => {
+                        await resetUploadedFiles();
+                        Alert.alert('Success', 'Sync history reset. You can now sync all recordings again.');
+                    }
+                }
+            ]
+        );
     };
 
     const handleManualSync = async () => {
@@ -141,6 +159,14 @@ export default function RecordingSettings() {
                 </TouchableOpacity>
                 
                 {statusMsg ? <Text style={styles.statusText}>{statusMsg}</Text> : null}
+
+                <TouchableOpacity 
+                    style={styles.resetBtn} 
+                    onPress={handleResetHistory}
+                >
+                    <Trash2 size={18} color="#ef4444" />
+                    <Text style={styles.resetBtnText}>Reset Sync History</Text>
+                </TouchableOpacity>
             </View>
 
             <View style={styles.infoCard}>
@@ -270,6 +296,19 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: '#6366f1',
         marginTop: 8,
+    },
+    resetBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 12,
+        marginTop: 16,
+        gap: 8,
+    },
+    resetBtnText: {
+        color: '#ef4444',
+        fontSize: 14,
+        fontWeight: '600',
     },
     infoCard: {
         margin: 20,
