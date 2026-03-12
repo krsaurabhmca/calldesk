@@ -122,51 +122,92 @@ include 'includes/header.php';
 
     </div>
 
-    <!-- Calls & Recordings -->
-    <div class="card" style="margin-bottom: 2rem;">
-        <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1.5rem; color: var(--primary);">Recent Calls & Recordings</h3>
+    <!-- Call Recordings (Filtered) -->
+    <div class="card" style="margin-bottom: 2rem; border-left: 4px solid var(--primary);">
+        <h3 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 1rem; color: var(--primary);">
+            <i class="fas fa-microphone-alt"></i> Call Recordings for this Number
+        </h3>
         <div class="table-container">
             <table style="width: 100%; border-collapse: collapse;">
                 <thead>
-                    <tr style="text-align: left; border-bottom: 2px solid var(--gray-200);">
-                        <th style="padding: 0.75rem; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted);">Type</th>
-                        <th style="padding: 0.75rem; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted);">Time</th>
-                        <th style="padding: 0.75rem; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted);">Duration</th>
-                        <th style="padding: 0.75rem; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted);">Recording</th>
+                    <tr style="text-align: left; background: #f8fafc; border-bottom: 2px solid var(--border);">
+                        <th style="padding: 0.75rem; font-size: 0.75rem; color: var(--text-muted);">FILENAME / TIME</th>
+                        <th style="padding: 0.75rem; font-size: 0.75rem; color: var(--text-muted); text-align: center;">DURATION</th>
+                        <th style="padding: 0.75rem; font-size: 0.75rem; color: var(--text-muted); text-align: right;">PLAY</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php while ($call = mysqli_fetch_assoc($calls_res)): ?>
-                    <tr style="border-bottom: 1px solid var(--gray-100);">
+                    <?php 
+                    $found_rec = false;
+                    mysqli_data_seek($calls_res, 0); // Reset result pointer
+                    while ($call = mysqli_fetch_assoc($calls_res)): 
+                        if (!$call['recording_path']) continue;
+                        $found_rec = true;
+                    ?>
+                    <tr style="border-bottom: 1px solid var(--border);">
                         <td style="padding: 0.75rem;">
-                            <span class="badge" style="background: <?php 
-                                echo $call['type'] == 'Incoming' ? '#dcfce7; color: #166534;' : 
-                                    ($call['type'] == 'Outgoing' ? '#e0e7ff; color: #3730a3;' : '#fee2e2; color: #991b1b;'); 
-                            ?>">
-                                <?php echo $call['type']; ?>
-                            </span>
+                            <div style="font-weight: 700; font-size: 0.875rem; color: var(--text-main);">
+                                <?php echo date('d M Y, h:i A', strtotime($call['call_time'])); ?>
+                            </div>
+                            <div style="font-size: 0.65rem; color: var(--text-muted); font-family: monospace;">
+                                <?php echo basename($call['recording_path']); ?>
+                            </div>
                         </td>
-                        <td style="padding: 0.75rem; font-size: 0.875rem;">
-                            <?php echo date('d M, h:i A', strtotime($call['call_time'])); ?>
-                        </td>
-                        <td style="padding: 0.75rem; font-size: 0.875rem;">
+                        <td style="padding: 0.75rem; font-size: 0.8125rem; text-align: center; color: var(--text-muted);">
                             <?php echo floor($call['duration']/60).'m '.($call['duration']%60).'s'; ?>
                         </td>
-                        <td style="padding: 0.75rem;">
+                        <td style="padding: 0.75rem; text-align: right;">
+                            <button class="btn" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer;" onclick="playRecord('<?php echo $call['recording_path']; ?>')">
+                                <i class="fas fa-play"></i> Listen
+                            </button>
+                        </td>
+                    </tr>
+                    <?php endwhile; ?>
+                    <?php if (!$found_rec): ?>
+                    <tr>
+                        <td colspan="3" style="padding: 2rem; text-align: center; color: var(--text-muted); font-size: 0.875rem;">
+                            No recordings synced for this number yet.
+                        </td>
+                    </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Full Call History (Simplified) -->
+    <div class="card" style="margin-bottom: 2rem;">
+        <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--text-main);">Full Call Log History</h3>
+        <div class="table-container">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="text-align: left; border-bottom: 1px solid var(--border);">
+                        <th style="padding: 0.6rem; font-size: 0.7rem; color: var(--text-muted);">TYPE</th>
+                        <th style="padding: 0.6rem; font-size: 0.7rem; color: var(--text-muted);">TIME</th>
+                        <th style="padding: 0.6rem; font-size: 0.7rem; color: var(--text-muted);">DUR</th>
+                        <th style="padding: 0.6rem; font-size: 0.7rem; color: var(--text-muted);">STATUS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    mysqli_data_seek($calls_res, 0); 
+                    while ($call = mysqli_fetch_assoc($calls_res)): 
+                    ?>
+                    <tr style="border-bottom: 1px solid #f8fafc;">
+                        <td style="padding: 0.6rem; font-size: 0.75rem; font-weight: 700; color: <?php echo $call['type'] == 'Incoming' ? 'var(--success)' : ($call['type'] == 'Missed' ? 'var(--danger)' : 'var(--primary)'); ?>;">
+                            <?php echo strtoupper($call['type']); ?>
+                        </td>
+                        <td style="padding: 0.6rem; font-size: 0.75rem; color: var(--text-main);">
+                            <?php echo date('d M, h:i A', strtotime($call['call_time'])); ?>
+                        </td>
+                        <td style="padding: 0.6rem; font-size: 0.75rem; color: var(--text-muted);">
+                            <?php echo $call['duration']; ?>s
+                        </td>
+                        <td style="padding: 0.6rem;">
                             <?php if ($call['recording_path']): ?>
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #f5f3ff; color: #6366f1; border: 1px solid #c7d2fe; width: auto;" onclick="playRecord('<?php echo $call['recording_path']; ?>')">
-                                        <i class="fas fa-play"></i> Play
-                                    </button>
-                                    <span style="font-size: 0.65rem; color: var(--text-muted); font-family: monospace;" title="<?php echo basename($call['recording_path']); ?>">
-                                        <?php 
-                                            $fname = basename($call['recording_path']);
-                                            echo strlen($fname) > 25 ? substr($fname, 0, 22).'...' : $fname; 
-                                        ?>
-                                    </span>
-                                </div>
+                                <i class="fas fa-check-circle" style="color: var(--success); font-size: 0.75rem;" title="Recorded"></i>
                             <?php else: ?>
-                                <span style="font-size: 0.75rem; color: var(--text-muted);">Not synced</span>
+                                <span style="font-size: 0.7rem; color: #ccc;">No Rec</span>
                             <?php endif; ?>
                         </td>
                     </tr>
