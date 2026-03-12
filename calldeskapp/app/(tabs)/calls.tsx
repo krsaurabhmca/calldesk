@@ -4,9 +4,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import { fetchAndSyncCallLogs, checkCallLogPermission, requestCallLogPermission } from '../../services/callLog';
 import { apiCall } from '../../services/api';
 import { getUser } from '../../services/auth';
-import { PhoneCall, RefreshCcw, Info, CheckCircle2, Clock, UserPlus, FileEdit, X, ChevronRight, Phone, MessageSquare, Calendar as CalendarIcon, Flag, ShieldAlert, CheckCircle } from 'lucide-react-native';
+import { PhoneCall, RefreshCcw, Info, CheckCircle2, Clock, UserPlus, FileEdit, X, ChevronRight, Phone, MessageSquare, Calendar as CalendarIcon, Flag, ShieldAlert, CheckCircle, Play, Pause, Square } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSnackbar } from '../../context/SnackbarContext';
+import { Audio } from 'expo-av';
+import { BASE_URL } from '../../constants/Config';
 
 const STATUS_OPTIONS = ['Pending', 'Follow-up', 'Interested', 'Converted', 'Lost'];
 
@@ -45,6 +47,11 @@ export default function CallsSyncScreen() {
     const [sources, setSources] = useState<any[]>([]);
     const [selectedSource, setSelectedSource] = useState<number | null>(null);
 
+    // Audio Playback State
+    const [sound, setSound] = useState<Audio.Sound | null>(null);
+    const [playingId, setPlayingId] = useState<number | null>(null);
+    const [playbackStatus, setPlaybackStatus] = useState<any>(null);
+
     const fetchLogs = async () => {
         setLoading(true);
         const params = new URLSearchParams();
@@ -76,6 +83,11 @@ export default function CallsSyncScreen() {
     useFocusEffect(
         useCallback(() => {
             fetchLogs();
+            return () => {
+                if (sound) {
+                    sound.unloadAsync();
+                }
+            };
         }, [selectedExecutive, filterDate])
     );
 
@@ -300,6 +312,52 @@ export default function CallsSyncScreen() {
         }
     };
 
+    const handleToggleAudio = async (item: any) => {
+        try {
+            if (playingId === item.id) {
+                if (playbackStatus?.isPlaying) {
+                    await sound?.pauseAsync();
+                } else {
+                    await sound?.playAsync();
+                }
+                return;
+            }
+
+            // Stop existing sound
+            if (sound) {
+                await sound.unloadAsync();
+            }
+
+            const audioUrl = BASE_URL.replace('/api', '') + '/' + item.recording_path;
+            console.log('Playing audio from:', audioUrl);
+
+            const { sound: newSound } = await Audio.Sound.createAsync(
+                { uri: audioUrl },
+                { shouldPlay: true },
+                onPlaybackStatusUpdate
+            );
+            setSound(newSound);
+            setPlayingId(item.id);
+        } catch (error) {
+            console.error('Playback error:', error);
+            showSnackbar('Failed to play recording', 'error');
+        }
+    };
+
+    const onPlaybackStatusUpdate = (status: any) => {
+        setPlaybackStatus(status);
+        if (status.didJustFinish) {
+            setPlayingId(null);
+        }
+    };
+
+    const stopAudio = async () => {
+        if (sound) {
+            await sound.stopAsync();
+            setPlayingId(null);
+        }
+    };
+
     const renderLogItem = ({ item }: { item: any }) => {
         const typeStyle = getCallTypeStyles(item.type);
         return (
@@ -351,9 +409,24 @@ export default function CallsSyncScreen() {
                         </TouchableOpacity>
                     )}
 
-                    <TouchableOpacity style={styles.callIconBtn} onPress={() => Linking.openURL(`tel:${item.mobile}`)}>
-                        <Phone size={16} color="#475569" />
-                    </TouchableOpacity>
+                    <View style={styles.rightActions}>
+                        <TouchableOpacity style={styles.callIconBtn} onPress={() => Linking.openURL(`tel:${item.mobile}`)}>
+                            <Phone size={16} color="#475569" />
+                        </TouchableOpacity>
+
+                        {item.recording_path ? (
+                            <TouchableOpacity
+                                style={[styles.playBtn, playingId === item.id && styles.playBtnActive]}
+                                onPress={() => handleToggleAudio(item)}
+                            >
+                                {playingId === item.id && playbackStatus?.isPlaying ? (
+                                    <Pause size={16} color="#fff" />
+                                ) : (
+                                    <Play size={16} color={playingId === item.id ? "#fff" : "#6366f1"} />
+                                )}
+                            </TouchableOpacity>
+                        ) : null}
+                    </View>
                 </View>
             </TouchableOpacity>
         );
@@ -842,6 +915,21 @@ const styles = StyleSheet.create({
         padding: 6,
         backgroundColor: '#f1f5f9',
         borderRadius: 8,
+    },
+    rightActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    playBtn: {
+        padding: 6,
+        backgroundColor: '#f5f3ff',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#6366f1',
+    },
+    playBtnActive: {
+        backgroundColor: '#6366f1',
     },
     emptyState: {
         alignItems: 'center',
