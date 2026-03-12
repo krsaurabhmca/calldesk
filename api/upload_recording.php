@@ -29,9 +29,10 @@ if (!is_dir($upload_dir)) {
     mkdir($upload_dir, 0777, true);
 }
 
-// Generate unique filename
-$file_ext = pathinfo($filename, PATHINFO_EXTENSION);
-$new_filename = $mobile . '_' . str_replace([' ', ':'], ['_', '-'], $call_time) . '.' . $file_ext;
+// Use original filename (sanitized) as requested
+$original_filename = basename($_FILES['recording']['name']);
+// Basic sanitization: remove non-alphanumeric/dot/underscore/dash
+$new_filename = preg_replace('/[^A-Za-z0-9._-]/', '_', $original_filename);
 $target_path = $upload_dir . $new_filename;
 
 if (move_uploaded_file($_FILES['recording']['tmp_name'], $target_path)) {

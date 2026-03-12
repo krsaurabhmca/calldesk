@@ -680,6 +680,9 @@ export default function CallsSyncScreen() {
                                             <View style={{ flex: 1 }}>
                                                 <Text style={styles.historyTime}>{formatDate(hLog.call_time)} {formatTime(hLog.call_time)}</Text>
                                                 <Text style={styles.historyType}>{hLog.type} • {hLog.duration}s</Text>
+                                                <Text style={{ fontSize: 9, color: '#94a3b8', marginTop: 2 }} numberOfLines={1}>
+                                                    {hLog.recording_path.split('/').pop()}
+                                                </Text>
                                             </View>
                                             <TouchableOpacity
                                                 style={[styles.playBtn, playingId === hLog.id && styles.playBtnActive]}

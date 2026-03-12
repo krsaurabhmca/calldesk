@@ -154,7 +154,8 @@ export const syncRecordings = async (onProgress?: (msg: string) => void) => {
 
 const uploadFile = async (uri: string, metadata: { mobile: string, callTime: string, originalName?: string }) => {
     const formData = new FormData();
-    const fileName = decodeURIComponent(uri).split('/').pop() || 'recording.mp3';
+    // Use originalName if provided, otherwise fallback to parsing from URI
+    const fileName = metadata.originalName || decodeURIComponent(uri).split('/').pop() || 'recording.mp3';
     
     // @ts-ignore
     formData.append('recording', {

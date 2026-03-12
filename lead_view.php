@@ -154,9 +154,17 @@ include 'includes/header.php';
                         </td>
                         <td style="padding: 0.75rem;">
                             <?php if ($call['recording_path']): ?>
-                                <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #f5f3ff; color: #6366f1; border: 1px solid #c7d2fe; width: auto;" onclick="playRecord('<?php echo $call['recording_path']; ?>')">
-                                    <i class="fas fa-play"></i> Play
-                                </button>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #f5f3ff; color: #6366f1; border: 1px solid #c7d2fe; width: auto;" onclick="playRecord('<?php echo $call['recording_path']; ?>')">
+                                        <i class="fas fa-play"></i> Play
+                                    </button>
+                                    <span style="font-size: 0.65rem; color: var(--text-muted); font-family: monospace;" title="<?php echo basename($call['recording_path']); ?>">
+                                        <?php 
+                                            $fname = basename($call['recording_path']);
+                                            echo strlen($fname) > 25 ? substr($fname, 0, 22).'...' : $fname; 
+                                        ?>
+                                    </span>
+                                </div>
                             <?php else: ?>
                                 <span style="font-size: 0.75rem; color: var(--text-muted);">Not synced</span>
                             <?php endif; ?>
