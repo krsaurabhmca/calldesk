@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Platform, TextInput } from 'react-native';
 import { Folder, Save, RefreshCw, CheckCircle2, AlertCircle, ChevronLeft, Mic, Keyboard, Trash2 } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useRouter } from 'expo-router';
 import { getRecordingPath, saveRecordingPath, syncRecordings, resetUploadedFiles } from '../../services/recording';
 
@@ -37,7 +38,8 @@ export default function RecordingSettings() {
 
     const handleBrowse = async () => {
         try {
-            const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+            const { StorageAccessFramework } = FileSystem as any;
+            const permissions = await StorageAccessFramework.requestDirectoryPermissionsAsync();
             if (permissions.granted) {
                 const directoryUri = permissions.directoryUri;
                 setPath(directoryUri);
@@ -118,9 +120,9 @@ export default function RecordingSettings() {
                     />
                     
                     <View style={styles.buttonRow}>
-                        <TouchableOpacity style={styles.saveBtn} onPress={handleSavePath}>
-                            <Save size={18} color="#fff" />
-                            <Text style={styles.btnText}>Save Path</Text>
+                        <TouchableOpacity style={styles.browseBtn} onPress={handleBrowse}>
+                            <Folder size={18} color="#fff" />
+                            <Text style={styles.btnText}>Browse Folder</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity style={styles.presetBtn} onPress={handleUsePreset}>
@@ -128,6 +130,11 @@ export default function RecordingSettings() {
                             <Text style={styles.presetBtnText}>MIUI Default</Text>
                         </TouchableOpacity>
                     </View>
+
+                    <TouchableOpacity style={styles.saveBtn} onPress={handleSavePath}>
+                        <Save size={18} color="#fff" />
+                        <Text style={styles.btnText}>Save Path Manually</Text>
+                    </TouchableOpacity>
                 </View>
                 <Text style={styles.infoText}>
                     Note: For MIUI, use the path above. If your recordings are in a different folder, please enter the absolute Android path.
@@ -232,6 +239,15 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     saveBtn: {
+        backgroundColor: '#64748b',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 12,
+        borderRadius: 12,
+        gap: 8,
+    },
+    browseBtn: {
         flex: 1,
         backgroundColor: '#6366f1',
         flexDirection: 'row',

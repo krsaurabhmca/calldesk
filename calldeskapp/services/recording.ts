@@ -1,5 +1,5 @@
-import * as FileSystem from 'expo-file-system';
-const { StorageAccessFramework } = FileSystem;
+import * as FileSystem from 'expo-file-system/legacy';
+const { StorageAccessFramework } = FileSystem as any;
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiCall } from './api';
 import { Platform } from 'react-native';
