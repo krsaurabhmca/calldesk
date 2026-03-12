@@ -7,7 +7,9 @@ import { Phone, User, Tag, Plus, X, ChevronRight, CheckCircle2, History, Message
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSnackbar } from '../../context/SnackbarContext';
 import * as SecureStore from 'expo-secure-store';
-import { TOKEN_KEY } from '../../constants/Config';
+import { TOKEN_KEY, BASE_URL } from '../../constants/Config';
+import { Audio } from 'expo-av';
+import { Play, Pause } from 'lucide-react-native';
 
 const STATUS_OPTIONS = ['Pending', 'Follow-up', 'Interested', 'Converted', 'Lost'];
 
@@ -44,7 +46,13 @@ export default function LeadsScreen() {
     const [nextFollowUp, setNextFollowUp] = useState('');
     const [activeTab, setActiveTab] = useState<'update' | 'history'>('update');
     const [history, setHistory] = useState<any[]>([]);
+    const [recordings, setRecordings] = useState<any[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
+
+    // Audio Playback State
+    const [sound, setSound] = useState<Audio.Sound | null>(null);
+    const [playingId, setPlayingId] = useState<number | null>(null);
+    const [playbackStatus, setPlaybackStatus] = useState<any>(null);
 
     // Date Picker State
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -78,13 +86,48 @@ export default function LeadsScreen() {
         fetchUserRole();
     }, []);
 
-    const fetchHistory = async (leadId: number) => {
+    const fetchHistory = async (leadId: number, mobile: string) => {
         setLoadingHistory(true);
-        const result = await apiCall(`history.php?lead_id=${leadId}`);
-        if (result.success) {
-            setHistory(result.data);
+        const [histRes, recRes] = await Promise.all([
+            apiCall(`history.php?lead_id=${leadId}`),
+            apiCall(`call_logs.php?search=${mobile}`, 'POST')
+        ]);
+        
+        if (histRes.success) setHistory(histRes.data);
+        if (recRes.success) {
+            // Only keep logs with recording paths
+            setRecordings(recRes.data.logs.filter((l: any) => l.recording_path));
         }
         setLoadingHistory(false);
+    };
+
+    const handleToggleAudio = async (item: any) => {
+        try {
+            if (playingId === item.id) {
+                if (playbackStatus?.isPlaying) {
+                    await sound?.pauseAsync();
+                } else {
+                    await sound?.playAsync();
+                }
+                return;
+            }
+
+            if (sound) await sound.unloadAsync();
+
+            const audioUrl = BASE_URL.replace('/api', '') + '/' + item.recording_path;
+            const { sound: newSound } = await Audio.Sound.createAsync(
+                { uri: audioUrl },
+                { shouldPlay: true },
+                (status) => {
+                    setPlaybackStatus(status);
+                    if ((status as any).didJustFinish) setPlayingId(null);
+                }
+            );
+            setSound(newSound);
+            setPlayingId(item.id);
+        } catch (error) {
+            showSnackbar('Playback error', 'error');
+        }
     };
 
     useFocusEffect(
@@ -171,7 +214,7 @@ export default function LeadsScreen() {
         setHistory([]);
         setActiveTab('update');
         setUpdateModalVisible(true);
-        if (lead.id) fetchHistory(lead.id);
+        if (lead.id) fetchHistory(lead.id, lead.mobile);
     };
 
     const handleLongPress = (lead: any) => {
@@ -569,38 +612,54 @@ export default function LeadsScreen() {
                                             <ActivityIndicator size="small" color="#6366f1" style={{ marginVertical: 20 }} />
                                         ) : history.length > 0 ? (
                                             <View style={styles.timeline}>
-                                                {Array.isArray(history) && history.map((h, index) => {
-                                                    if (!h || !h.id) return null;
-                                                    return (
-                                                        <View key={h.id} style={styles.timelineItem}>
-                                                            <View style={styles.timelineMarker}>
-                                                                <View style={styles.timelineDot} />
-                                                                {index !== history.length - 1 && <View style={styles.timelineLine} />}
-                                                            </View>
-                                                            <View style={styles.timelineContent}>
-                                                                <View style={styles.timelineHeader}>
-                                                                    <Text style={styles.timelineDate}>
-                                                                        {formatDateTime(h.created_at)}
-                                                                    </Text>
-                                                                    {h.next_follow_up_date && (
-                                                                        <View style={styles.nextBadge}>
-                                                                            <CalendarIcon size={10} color="#6366f1" />
-                                                                            <Text style={styles.nextDateText}>{h.next_follow_up_date}</Text>
-                                                                        </View>
-                                                                    )}
-                                                                </View>
-                                                                <Text style={styles.timelineRemark}>{h.remark}</Text>
-                                                            </View>
+                                                {Array.isArray(history) && history.map((h, index) => (
+                                                    <View key={h.id} style={styles.timelineItem}>
+                                                        <View style={styles.timelineMarker}>
+                                                            <View style={styles.timelineDot} />
+                                                            {index !== history.length - 1 && <View style={styles.timelineLine} />}
                                                         </View>
-                                                    );
-                                                })}
+                                                        <View style={styles.timelineContent}>
+                                                            <View style={styles.timelineHeader}>
+                                                                <Text style={styles.timelineDate}>{formatDateTime(h.created_at)}</Text>
+                                                            </View>
+                                                            <Text style={styles.timelineRemark}>{h.remark}</Text>
+                                                        </View>
+                                                    </View>
+                                                ))}
                                             </View>
                                         ) : (
-                                            <View style={styles.noHistoryContainer}>
-                                                <MessageSquare size={32} color="#cbd5e1" />
-                                                <Text style={styles.noHistory}>No previous records found.</Text>
-                                            </View>
+                                            <Text style={styles.noHistory}>No follow-up records.</Text>
                                         )}
+
+                                        <View style={[styles.sectionHeader, { marginTop: 24 }]}>
+                                            <Play size={16} color="#6366f1" />
+                                            <Text style={styles.sectionTitle}>Call Recordings</Text>
+                                        </View>
+
+                                        {!loadingHistory && recordings.length > 0 ? (
+                                            <View style={{ gap: 10, marginTop: 10 }}>
+                                                {recordings.map((rec) => (
+                                                    <View key={rec.id} style={styles.recItem}>
+                                                        <View style={{ flex: 1 }}>
+                                                            <Text style={styles.recTime}>{formatDateTime(rec.call_time)}</Text>
+                                                            <Text style={styles.recType}>{rec.type} • {rec.duration}s</Text>
+                                                        </View>
+                                                        <TouchableOpacity 
+                                                            style={[styles.recPlayBtn, playingId === rec.id && { backgroundColor: '#6366f1' }]} 
+                                                            onPress={() => handleToggleAudio(rec)}
+                                                        >
+                                                            {playingId === rec.id && playbackStatus?.isPlaying ? (
+                                                                <Pause size={14} color="#fff" />
+                                                            ) : (
+                                                                <Play size={14} color={playingId === rec.id ? "#fff" : "#6366f1"} />
+                                                            )}
+                                                        </TouchableOpacity>
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        ) : !loadingHistory ? (
+                                            <Text style={styles.noHistory}>No recordings found.</Text>
+                                        ) : null}
                                     </View>
                                 </View>
                             )}
@@ -1170,5 +1229,32 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         color: '#94a3b8',
         fontSize: 14,
+    },
+    recItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        backgroundColor: '#f8fafc',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+    },
+    recTime: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#1e293b',
+    },
+    recType: {
+        fontSize: 11,
+        color: '#64748b',
+        marginTop: 2,
+    },
+    recPlayBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#eff6ff',
+        justifyContent: 'center',
+        alignItems: 'center',
     }
 });
