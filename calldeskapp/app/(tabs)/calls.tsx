@@ -37,6 +37,8 @@ export default function CallsSyncScreen() {
     const [showFilterDatePicker, setShowFilterDatePicker] = useState(false);
 
     const [editName, setEditName] = useState('');
+    const [historyLogs, setHistoryLogs] = useState<any[]>([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
 
     // Add Lead Modal State
     const [addLeadModalVisible, setAddLeadModalVisible] = useState(false);
@@ -184,6 +186,17 @@ export default function CallsSyncScreen() {
         setUpdateRemark('');
         setNextFollowUp('');
         setUpdateModalVisible(true);
+        fetchLeadHistory(log.mobile);
+    };
+
+    const fetchLeadHistory = async (mobile: string) => {
+        setLoadingHistory(true);
+        const res = await apiCall(`call_logs.php?search=${mobile}`, 'POST');
+        if (res.success) {
+            // Filter to only those with recordings and sort
+            setHistoryLogs(res.data.logs.filter((l: any) => l.recording_path));
+        }
+        setLoadingHistory(false);
     };
 
     const handleUpdateInteraction = async () => {
@@ -655,6 +668,36 @@ export default function CallsSyncScreen() {
                             >
                                 {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>Save Interaction</Text>}
                             </TouchableOpacity>
+
+                            {/* History Section */}
+                            <Text style={[styles.label, { marginTop: 0 }]}>Recent Synced Recordings</Text>
+                            {loadingHistory ? (
+                                <ActivityIndicator color="#6366f1" style={{ marginVertical: 20 }} />
+                            ) : historyLogs.length > 0 ? (
+                                <View style={styles.historyContainer}>
+                                    {historyLogs.map((hLog) => (
+                                        <View key={hLog.id} style={styles.historyItem}>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.historyTime}>{formatDate(hLog.call_time)} {formatTime(hLog.call_time)}</Text>
+                                                <Text style={styles.historyType}>{hLog.type} • {hLog.duration}s</Text>
+                                            </View>
+                                            <TouchableOpacity
+                                                style={[styles.playBtn, playingId === hLog.id && styles.playBtnActive]}
+                                                onPress={() => handleToggleAudio(hLog)}
+                                            >
+                                                {playingId === hLog.id && playbackStatus?.isPlaying ? (
+                                                    <Pause size={14} color="#fff" />
+                                                ) : (
+                                                    <Play size={14} color={playingId === hLog.id ? "#fff" : "#6366f1"} />
+                                                )}
+                                            </TouchableOpacity>
+                                        </View>
+                                    ))}
+                                </View>
+                            ) : (
+                                <Text style={styles.noHistoryText}>No past recordings found for this number.</Text>
+                            )}
+                            <View style={{ height: 40 }} />
                         </ScrollView>
                     </View>
                 </KeyboardAvoidingView>
@@ -1093,12 +1136,44 @@ const styles = StyleSheet.create({
         borderColor: '#e2e8f0',
         borderRadius: 12,
         padding: 14,
-        fontSize: 16,
+        fontSize: 14,
         color: '#1e293b',
     },
     textArea: {
-        height: 80,
+        height: 60,
         textAlignVertical: 'top',
+    },
+    historyContainer: {
+        backgroundColor: '#f1f5f9',
+        borderRadius: 12,
+        padding: 8,
+        gap: 8,
+        marginTop: 4,
+    },
+    historyItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 10,
+        backgroundColor: '#fff',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+    },
+    historyTime: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#1e293b',
+    },
+    historyType: {
+        fontSize: 10,
+        color: '#64748b',
+    },
+    noHistoryText: {
+        fontSize: 12,
+        color: '#94a3b8',
+        fontStyle: 'italic',
+        textAlign: 'center',
+        marginTop: 4,
     },
     calendarInput: {
         flexDirection: 'row',

@@ -43,8 +43,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_followup'])) {
 // Fetch Follow-up History
 $history_res = mysqli_query($conn, "SELECT f.*, u.name as executive_name FROM follow_ups f JOIN users u ON f.executive_id = u.id JOIN leads l ON f.lead_id = l.id WHERE f.lead_id = $lead_id AND l.organization_id = $org_id ORDER BY f.created_at DESC");
 
-// Fetch Call Logs for this lead
-$calls_res = mysqli_query($conn, "SELECT * FROM call_logs WHERE lead_id = $lead_id ORDER BY call_time DESC LIMIT 20");
+// Fetch Call Logs for this lead's number
+$lead_mobile = $lead['mobile'];
+$calls_res = mysqli_query($conn, "SELECT * FROM call_logs WHERE (mobile = '$lead_mobile' OR lead_id = $lead_id) AND executive_id IN (SELECT id FROM users WHERE organization_id = $org_id) ORDER BY call_time DESC LIMIT 50");
 
 include 'includes/header.php';
 ?>

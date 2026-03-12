@@ -34,23 +34,37 @@ export const resetUploadedFiles = async () => {
 
 /**
  * Parses MIUI filename to extract mobile and call time
- * Example: "Name(9876543210)_20230520153045.mp3"
+ * Example 1: "Name(9876543210)_20230520153045.mp3"
+ * Example 2: "9876543210_2025-12-03_16-37-13.mp3"
  */
 export const parseMIUIFilename = (filename: string) => {
-    // Decode URI component if it's from SAF
     const decodedName = decodeURIComponent(filename);
     const phoneRegex = /(\d{10,})/;
-    const timeRegex = /(\d{14})/; // YYYYMMDDHHMMSS
+    
+    // Pattern 1: Continuous 14 digits (YYYYMMDDHHMMSS)
+    const timeRegex1 = /(\d{14})/; 
+    // Pattern 2: Dash/Underscore separated (YYYY-MM-DD_HH-MM-SS)
+    const timeRegex2 = /(\d{4})[-_](\d{2})[-_](\d{2})[-_](\d{2})[-_](\d{2})[-_](\d{2})/;
 
     const phoneMatch = decodedName.match(phoneRegex);
-    const timeMatch = decodedName.match(timeRegex);
+    const timeMatch1 = decodedName.match(timeRegex1);
+    const timeMatch2 = decodedName.match(timeRegex2);
 
-    if (phoneMatch && timeMatch) {
+    if (phoneMatch) {
         const mobile = phoneMatch[0].slice(-10);
-        const t = timeMatch[0];
-        // Format to YYYY-MM-DD HH:MM:SS
-        const callTime = `${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)} ${t.slice(8, 10)}:${t.slice(10, 12)}:${t.slice(12, 14)}`;
-        return { mobile, callTime, originalName: decodedName };
+        let callTime = '';
+
+        if (timeMatch1) {
+            const t = timeMatch1[0];
+            callTime = `${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)} ${t.slice(8, 10)}:${t.slice(10, 12)}:${t.slice(12, 14)}`;
+        } else if (timeMatch2) {
+            const [_, y, m, d, h, min, s] = timeMatch2;
+            callTime = `${y}-${m}-${d} ${h}:${min}:${s}`;
+        }
+
+        if (callTime) {
+            return { mobile, callTime, originalName: decodedName };
+        }
     }
     return null;
 };
@@ -82,9 +96,10 @@ export const syncRecordings = async (onProgress?: (msg: string) => void) => {
         
         // Filter recording files
         const toUpload = files.filter(f => {
-            const name = isSAF ? decodeURIComponent(f) : f;
-            return (name.endsWith('.mp3') || name.endsWith('.amr') || name.endsWith('.aac') || name.endsWith('.m4a')) && 
-                   !uploaded.includes(name);
+            const fullPath = isSAF ? decodeURIComponent(f) : f;
+            const fileName = fullPath.split('/').pop() || '';
+            const isAudio = (fileName.endsWith('.mp3') || fileName.endsWith('.amr') || fileName.endsWith('.aac') || fileName.endsWith('.m4a'));
+            return isAudio && !uploaded.includes(fileName);
         });
 
         if (toUpload.length === 0) {
@@ -95,7 +110,8 @@ export const syncRecordings = async (onProgress?: (msg: string) => void) => {
         let failCount = 0;
 
         for (const fileUri of toUpload) {
-            const fileName = isSAF ? fileUri.split('%2F').pop() || fileUri.split('/').pop() || '' : fileUri;
+            const fullPath = isSAF ? decodeURIComponent(fileUri) : fileUri;
+            const fileName = fullPath.split('/').pop() || '';
             const metadata = parseMIUIFilename(fileName);
             
             if (!metadata) {
@@ -108,8 +124,6 @@ export const syncRecordings = async (onProgress?: (msg: string) => void) => {
             
             let result;
             if (isSAF) {
-                // For SAF, we might need to read as base64 and upload or use a different method
-                // But let's try if normal upload handles content://
                 result = await uploadFile(fileUri, metadata);
             } else {
                 const normalizedPath = path.startsWith('file://') ? path : `file://${path}`;
@@ -119,8 +133,7 @@ export const syncRecordings = async (onProgress?: (msg: string) => void) => {
 
             if (result.success) {
                 console.log(`Sync: Successfully uploaded ${fileName}`);
-                const nameToMark = isSAF ? metadata.originalName : fileName;
-                await markFileAsUploaded(nameToMark);
+                await markFileAsUploaded(fileName);
                 syncedCount++;
             } else {
                 console.error(`Sync: Failed to upload ${fileName}:`, result.message);
