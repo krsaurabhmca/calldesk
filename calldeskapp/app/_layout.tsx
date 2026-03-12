@@ -6,11 +6,13 @@ import { registerBackgroundSync } from "../services/backgroundSync";
 
 export default function RootLayout() {
   useEffect(() => {
-    // Register background sync after a short delay to ensure app UI is ready
+    // Temporarily disabled to debug loading issue
+    /*
     const timer = setTimeout(() => {
       registerBackgroundSync();
     }, 2000);
     return () => clearTimeout(timer);
+    */
   }, []);
 
   return (
