@@ -1,6 +1,7 @@
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
 import { syncRecordings } from './recording';
+import { Platform } from 'react-native';
 
 const RECORDING_SYNC_TASK = 'recording-sync-task';
 
@@ -21,7 +22,10 @@ TaskManager.defineTask(RECORDING_SYNC_TASK, async () => {
 });
 
 export const registerBackgroundSync = async () => {
+    if (Platform.OS === 'web') return;
+    
     try {
+        console.log('Registering Background Sync Task...');
         const isRegistered = await TaskManager.isTaskRegisteredAsync(RECORDING_SYNC_TASK);
         if (!isRegistered) {
             await BackgroundFetch.registerTaskAsync(RECORDING_SYNC_TASK, {
@@ -29,10 +33,12 @@ export const registerBackgroundSync = async () => {
                 stopOnTerminate: false, // Continue sync after app is closed
                 startOnBoot: true, // Start sync after device restart
             });
-            console.log('Background Sync Task Registered');
+            console.log('Background Sync Task Registered successfully');
+        } else {
+            console.log('Background Sync Task already registered');
         }
     } catch (err) {
-        console.error('Task Registration failed', err);
+        console.error('Task Registration failed:', err);
     }
 };
 
