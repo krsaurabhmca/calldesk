@@ -59,7 +59,9 @@ export const syncRecordings = async (onProgress?: (msg: string) => void) => {
 
     try {
         onProgress?.('Scanning directory...');
-        const files = await FileSystem.readDirectoryAsync(path);
+        // Expo FileSystem requires 'file://' prefix for local absolute paths
+        const normalizedPath = path.startsWith('file://') ? path : `file://${path}`;
+        const files = await FileSystem.readDirectoryAsync(normalizedPath);
         const uploaded = await getUploadedFiles();
         
         const toUpload = files.filter(f => 
@@ -80,7 +82,8 @@ export const syncRecordings = async (onProgress?: (msg: string) => void) => {
             }
 
             onProgress?.(`Uploading ${file}...`);
-            const fileUri = `${path}/${file}`;
+            const normalizedPath = path.startsWith('file://') ? path : `file://${path}`;
+            const fileUri = `${normalizedPath}/${file}`;
             
             // Upload using multipart/form-data
             const result = await uploadFile(fileUri, metadata);
