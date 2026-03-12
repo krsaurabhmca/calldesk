@@ -9,73 +9,92 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $executive_id = $auth_user['id'];
 $org_id = $auth_user['organization_id'];
 
-// Check if file is uploaded
 if (!isset($_FILES['recording'])) {
     sendResponse(false, 'No recording file provided', null, 400);
 }
 
-// Metadata
-$mobile = mysqli_real_escape_string($conn, $_POST['mobile'] ?? '');
-$call_time = mysqli_real_escape_string($conn, $_POST['call_time'] ?? ''); // Expected 'YYYY-MM-DD HH:MM:SS'
-$filename = $_FILES['recording']['name'];
+// Metadata from app
+$mobile_from_app   = mysqli_real_escape_string($conn, $_POST['mobile'] ?? '');
+$calltime_from_app = mysqli_real_escape_string($conn, $_POST['call_time'] ?? '');
 
-if (empty($mobile) || empty($call_time)) {
-    sendResponse(false, 'Missing mobile or call_time metadata', null, 400);
+// Use original filename (sanitized)
+$original_filename = basename($_FILES['recording']['name']);
+$new_filename      = preg_replace('/[^A-Za-z0-9._()-]/', '_', $original_filename);
+
+// ─── Parse filename server-side for reliability ──────────────────────────────
+// This catches cases where app sends wrong call_time (e.g. 0091-country-code bug)
+//
+// Supported patterns:
+//   00918252669396(00918252669396)_20251128101805.mp3
+//   8207472547(8207472547)_20251128103815.mp3
+//   9876543210_2025-12-03_16-37-13.mp3
+
+$mobile   = $mobile_from_app;
+$calltime = $calltime_from_app;
+
+// Pattern 1: _YYYYMMDDHHMMSS. (14 digits after underscore, before dot)
+if (preg_match('/_(\d{14})\./', $new_filename, $m)) {
+    $t = $m[1];
+    $parsed_time = sprintf('%s-%s-%s %s:%s:%s',
+        substr($t, 0, 4), substr($t, 4, 2), substr($t, 6, 2),
+        substr($t, 8, 2), substr($t, 10, 2), substr($t, 12, 2)
+    );
+    $calltime = $parsed_time; // Always trust filename timestamp
+}
+// Pattern 2: YYYY-MM-DD_HH-MM-SS
+elseif (preg_match('/(\d{4})-(\d{2})-(\d{2})[_-](\d{2})-(\d{2})-(\d{2})/', $new_filename, $m)) {
+    $calltime = "{$m[1]}-{$m[2]}-{$m[3]} {$m[4]}:{$m[5]}:{$m[6]}";
 }
 
-// Create directory if not exists
+// Always take last 10 digits of mobile (strip country code 91/0091)
+if (preg_match('/(\d{10,})/', $new_filename, $pm)) {
+    $mobile = substr($pm[1], -10);
+}
+
+if (empty($mobile) || empty($calltime)) {
+    sendResponse(false, 'Could not determine mobile or call_time from filename or metadata', null, 400);
+}
+
+$mobile   = mysqli_real_escape_string($conn, $mobile);
+$calltime = mysqli_real_escape_string($conn, $calltime);
+
+// Create directory
 $upload_dir = '../uploads/recordings/' . $org_id . '/';
 if (!is_dir($upload_dir)) {
     mkdir($upload_dir, 0777, true);
 }
 
-// Use original filename (sanitized) as requested
-$original_filename = basename($_FILES['recording']['name']);
-// Basic sanitization: remove non-alphanumeric/dot/underscore/dash
-$new_filename = preg_replace('/[^A-Za-z0-9._-]/', '_', $original_filename);
 $target_path = $upload_dir . $new_filename;
 
 if (move_uploaded_file($_FILES['recording']['tmp_name'], $target_path)) {
     $db_path = 'uploads/recordings/' . $org_id . '/' . $new_filename;
-    
-    // Find the matching call log
-    // Increased window to 600 seconds (10 mins) for better matching
+
+    // ── 1. Try exact match within 10-minute window ──
     $sql = "UPDATE call_logs 
             SET recording_path = '$db_path' 
             WHERE mobile = '$mobile' 
-            AND ABS(TIMESTAMPDIFF(SECOND, call_time, '$call_time')) < 600
+            AND ABS(TIMESTAMPDIFF(SECOND, call_time, '$calltime')) < 600
             AND organization_id = $org_id 
             AND recording_path IS NULL
+            ORDER BY ABS(TIMESTAMPDIFF(SECOND, call_time, '$calltime')) ASC
             LIMIT 1";
+    mysqli_query($conn, $sql);
+    $matched = mysqli_affected_rows($conn) > 0;
 
-    // For debugging, let's see if there are ANY logs for this mobile
-    $debug_sql = "SELECT id, call_time, TIMESTAMPDIFF(SECOND, call_time, '$call_time') as diff 
-                 FROM call_logs 
-                 WHERE mobile = '$mobile' 
-                 AND organization_id = $org_id 
-                 ORDER BY ABS(TIMESTAMPDIFF(SECOND, call_time, '$call_time')) ASC 
-                 LIMIT 3";
-    $debug_res = mysqli_query($conn, $debug_sql);
-    $nearby_logs = [];
-    while($drow = mysqli_fetch_assoc($debug_res)) {
-        $nearby_logs[] = $drow;
+    // ── 2. If no match, insert an unmatched recording log entry ──
+    if (!$matched) {
+        $ins = "INSERT IGNORE INTO call_logs 
+                (organization_id, executive_id, mobile, call_time, type, duration, recording_path)
+                VALUES ($org_id, $executive_id, '$mobile', '$calltime', 'Incoming', 0, '$db_path')";
+        mysqli_query($conn, $ins);
     }
 
-    if (mysqli_query($conn, $sql) && mysqli_affected_rows($conn) > 0) {
-        sendResponse(true, 'Recording uploaded and matched successfully', ['path' => $db_path]);
-    } else {
-        // If no match found, we still save it but provide debug info
-        sendResponse(true, 'Recording uploaded but no matching call log found in time window', [
-            'path' => $db_path, 
-            'unmatched' => true,
-            'debug' => [
-                'target_mobile' => $mobile,
-                'target_time' => $call_time,
-                'nearby_logs' => $nearby_logs,
-                'sql' => $sql
-            ]
-        ]);
-    }
+    sendResponse(true, $matched ? 'Uploaded and matched' : 'Uploaded, no matching log (saved as new entry)', [
+        'path'    => $db_path,
+        'mobile'  => $mobile,
+        'time'    => $calltime,
+        'matched' => $matched,
+    ]);
 } else {
     sendResponse(false, 'Failed to save uploaded file', null, 500);
 }

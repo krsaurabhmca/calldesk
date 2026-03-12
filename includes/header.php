@@ -71,6 +71,9 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 <a href="<?php echo BASE_URL; ?>call_logs.php" class="nav-link <?php echo $current_page == 'call_logs.php' ? 'active' : ''; ?>">
                     <i class="fas fa-phone-volume"></i> <span>Call Logs</span>
                 </a>
+                <a href="<?php echo BASE_URL; ?>recordings.php" class="nav-link <?php echo $current_page == 'recordings.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-microphone-alt"></i> <span>Recordings</span>
+                </a>
 
                 <div class="nav-section-label">Communication</div>
                 <a href="<?php echo BASE_URL; ?>messages.php" class="nav-link <?php echo $current_page == 'messages.php' ? 'active' : ''; ?>">

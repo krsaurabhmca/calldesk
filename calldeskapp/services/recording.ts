@@ -33,40 +33,47 @@ export const resetUploadedFiles = async () => {
 };
 
 /**
- * Parses MIUI filename to extract mobile and call time
- * Example 1: "Name(9876543210)_20230520153045.mp3"
- * Example 2: "9876543210_2025-12-03_16-37-13.mp3"
+ * Parses MIUI filename to extract mobile and call time.
+ *
+ * Handled formats:
+ *   1. "9876543210(9876543210)_20230520153045.mp3"     → number(number)_YYYYMMDDHHMMSS
+ *   2. "00918252669396(00918252669396)_20251128101805.mp3" → 0091-prefixed country code
+ *   3. "9876543210_2025-12-03_16-37-13.mp3"            → number_YYYY-MM-DD_HH-MM-SS
+ *
+ * Key fix: timestamp is always AFTER the last underscore before the extension.
+ * We anchor /_(\d{14})\./ to avoid mistaking 14-digit phone numbers for timestamps.
  */
 export const parseMIUIFilename = (filename: string) => {
     const decodedName = decodeURIComponent(filename);
+
+    // Extract last 10 digits for mobile (strips country codes like 0091/91)
     const phoneRegex = /(\d{10,})/;
-    
-    // Pattern 1: Continuous 14 digits (YYYYMMDDHHMMSS)
-    const timeRegex1 = /(\d{14})/; 
+    const phoneMatch = decodedName.match(phoneRegex);
+    if (!phoneMatch) return null;
+    const mobile = phoneMatch[0].slice(-10);
+
+    // Pattern 1: underscore then exactly 14 digits then dot (YYYYMMDDHHMMSS)
+    // Anchored to _ to avoid matching phone number digits
+    const timeRegex1 = /_(\d{14})\./;
     // Pattern 2: Dash/Underscore separated (YYYY-MM-DD_HH-MM-SS)
     const timeRegex2 = /(\d{4})[-_](\d{2})[-_](\d{2})[-_](\d{2})[-_](\d{2})[-_](\d{2})/;
 
-    const phoneMatch = decodedName.match(phoneRegex);
     const timeMatch1 = decodedName.match(timeRegex1);
     const timeMatch2 = decodedName.match(timeRegex2);
 
-    if (phoneMatch) {
-        const mobile = phoneMatch[0].slice(-10);
-        let callTime = '';
+    let callTime = '';
 
-        if (timeMatch1) {
-            const t = timeMatch1[0];
-            callTime = `${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)} ${t.slice(8, 10)}:${t.slice(10, 12)}:${t.slice(12, 14)}`;
-        } else if (timeMatch2) {
-            const [_, y, m, d, h, min, s] = timeMatch2;
-            callTime = `${y}-${m}-${d} ${h}:${min}:${s}`;
-        }
-
-        if (callTime) {
-            return { mobile, callTime, originalName: decodedName };
-        }
+    if (timeMatch1) {
+        // timeMatch1[1] is the captured group (14 digits)
+        const t = timeMatch1[1];
+        callTime = `${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)} ${t.slice(8, 10)}:${t.slice(10, 12)}:${t.slice(12, 14)}`;
+    } else if (timeMatch2) {
+        const [, y, m, d, h, min, s] = timeMatch2;
+        callTime = `${y}-${m}-${d} ${h}:${min}:${s}`;
     }
-    return null;
+
+    if (!callTime) return null;
+    return { mobile, callTime, originalName: decodedName };
 };
 
 export const syncRecordings = async (onProgress?: (msg: string) => void) => {
