@@ -1,4 +1,5 @@
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
+const { StorageAccessFramework } = FileSystem;
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiCall } from './api';
 import { Platform } from 'react-native';
@@ -36,21 +37,20 @@ export const resetUploadedFiles = async () => {
  * Example: "Name(9876543210)_20230520153045.mp3"
  */
 export const parseMIUIFilename = (filename: string) => {
-    // Regular expression to match common MIUI patterns
-    // 1. Name(Number)_Timestamp
-    // 2. Number_Timestamp
+    // Decode URI component if it's from SAF
+    const decodedName = decodeURIComponent(filename);
     const phoneRegex = /(\d{10,})/;
     const timeRegex = /(\d{14})/; // YYYYMMDDHHMMSS
 
-    const phoneMatch = filename.match(phoneRegex);
-    const timeMatch = filename.match(timeRegex);
+    const phoneMatch = decodedName.match(phoneRegex);
+    const timeMatch = decodedName.match(timeRegex);
 
     if (phoneMatch && timeMatch) {
         const mobile = phoneMatch[0].slice(-10);
         const t = timeMatch[0];
         // Format to YYYY-MM-DD HH:MM:SS
         const callTime = `${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)} ${t.slice(8, 10)}:${t.slice(10, 12)}:${t.slice(12, 14)}`;
-        return { mobile, callTime };
+        return { mobile, callTime, originalName: decodedName };
     }
     return null;
 };
@@ -62,55 +62,91 @@ export const syncRecordings = async (onProgress?: (msg: string) => void) => {
     if (!path) return { success: false, message: 'Recording path not set' };
 
     try {
-        onProgress?.('Scanning directory...');
-        // Expo FileSystem requires 'file://' prefix for local absolute paths
-        const normalizedPath = path.startsWith('file://') ? path : `file://${path}`;
-        const files = await FileSystem.readDirectoryAsync(normalizedPath);
+        const isSAF = path.startsWith('content://');
+        onProgress?.(isSAF ? 'Accessing folder (SAF)...' : 'Accessing folder...');
+        
+        let files: string[] = [];
+        if (isSAF) {
+            files = await StorageAccessFramework.readDirectoryAsync(path);
+        } else {
+            const normalizedPath = path.startsWith('file://') ? path : `file://${path}`;
+            const folderInfo = await FileSystem.getInfoAsync(normalizedPath);
+            if (!folderInfo.exists) {
+                return { success: false, message: 'Folder does not exist. Please check the path.' };
+            }
+            files = await FileSystem.readDirectoryAsync(normalizedPath);
+        }
+
+        console.log(`Sync: Found ${files.length} total files`);
         const uploaded = await getUploadedFiles();
         
-        const toUpload = files.filter(f => 
-            (f.endsWith('.mp3') || f.endsWith('.amr') || f.endsWith('.aac')) && 
-            !uploaded.includes(f)
-        );
+        // Filter recording files
+        const toUpload = files.filter(f => {
+            const name = isSAF ? decodeURIComponent(f) : f;
+            return (name.endsWith('.mp3') || name.endsWith('.amr') || name.endsWith('.aac') || name.endsWith('.m4a')) && 
+                   !uploaded.includes(name);
+        });
 
         if (toUpload.length === 0) {
-            return { success: true, message: 'All recordings are already synced', count: 0 };
+            return { success: true, message: 'No new recordings found', count: 0 };
         }
 
         let syncedCount = 0;
-        for (const file of toUpload) {
-            const metadata = parseMIUIFilename(file);
+        let failCount = 0;
+
+        for (const fileUri of toUpload) {
+            const fileName = isSAF ? fileUri.split('%2F').pop() || fileUri.split('/').pop() || '' : fileUri;
+            const metadata = parseMIUIFilename(fileName);
+            
             if (!metadata) {
-                console.log(`Skipping file (unrecognized format): ${file}`);
+                console.log(`Sync: Skipping file (unrecognized format): ${fileName}`);
                 continue;
             }
 
-            onProgress?.(`Uploading ${file}...`);
-            const normalizedPath = path.startsWith('file://') ? path : `file://${path}`;
-            const fileUri = `${normalizedPath}/${file}`;
+            console.log(`Sync: Metadata for ${fileName}:`, metadata);
+            onProgress?.(`Uploading ${syncedCount + 1}/${toUpload.length}...`);
             
-            // Upload using multipart/form-data
-            const result = await uploadFile(fileUri, metadata);
+            let result;
+            if (isSAF) {
+                // For SAF, we might need to read as base64 and upload or use a different method
+                // But let's try if normal upload handles content://
+                result = await uploadFile(fileUri, metadata);
+            } else {
+                const normalizedPath = path.startsWith('file://') ? path : `file://${path}`;
+                const fullUri = `${normalizedPath}/${fileUri}`;
+                result = await uploadFile(fullUri, metadata);
+            }
+
             if (result.success) {
-                await markFileAsUploaded(file);
+                console.log(`Sync: Successfully uploaded ${fileName}`);
+                const nameToMark = isSAF ? metadata.originalName : fileName;
+                await markFileAsUploaded(nameToMark);
                 syncedCount++;
+            } else {
+                console.error(`Sync: Failed to upload ${fileName}:`, result.message);
+                failCount++;
             }
         }
 
-        return { success: true, message: `Successfully synced ${syncedCount} recordings`, count: syncedCount };
+        return { 
+            success: true, 
+            message: `Synced ${syncedCount} recordings. ${failCount > 0 ? failCount + ' failed.' : ''}`, 
+            count: syncedCount 
+        };
     } catch (error: any) {
         console.error('Sync Error:', error);
-        return { success: false, message: 'Failed to access recordings: ' + error.message };
+        return { success: false, message: 'Error: ' + error.message };
     }
 };
 
-const uploadFile = async (uri: string, metadata: { mobile: string, callTime: string }) => {
+const uploadFile = async (uri: string, metadata: { mobile: string, callTime: string, originalName?: string }) => {
     const formData = new FormData();
+    const fileName = decodeURIComponent(uri).split('/').pop() || 'recording.mp3';
     
     // @ts-ignore
     formData.append('recording', {
-        uri: Platform.OS === 'android' ? uri : uri.replace('file://', ''),
-        name: uri.split('/').pop(),
+        uri: uri,
+        name: fileName,
         type: 'audio/mpeg', // Modern MIUI uses mp3
     });
     

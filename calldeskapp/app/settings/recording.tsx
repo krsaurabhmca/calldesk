@@ -37,25 +37,18 @@ export default function RecordingSettings() {
 
     const handleBrowse = async () => {
         try {
-            const result = await DocumentPicker.getDocumentAsync({
-                type: 'audio/*',
-                copyToCacheDirectory: false,
-            });
-
-            if (!result.canceled && result.assets && result.assets.length > 0) {
-                // On modern Android, the URI is content://...
-                // We show an alert explaining how to find the path
-                Alert.alert(
-                    'Manual Path Required',
-                    'Due to Android security, we cannot detect the folder automatically from a file selection.\n\nMost MIUI phones use:\n' + SUGGESTED_MIUI_PATH,
-                    [
-                        { text: 'Use MIUI Default', onPress: handleUsePreset },
-                        { text: 'OK' }
-                    ]
-                );
+            const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+            if (permissions.granted) {
+                const directoryUri = permissions.directoryUri;
+                setPath(directoryUri);
+                await saveRecordingPath(directoryUri);
+                Alert.alert('Success', 'Recording folder access granted.');
+            } else {
+                Alert.alert('Permission Denied', 'Access to the selected folder was denied.');
             }
         } catch (err) {
-            Alert.alert('Error', 'Failed to open file picker');
+            console.error('SAF Error:', err);
+            Alert.alert('Error', 'Failed to grant folder access. ' + err);
         }
     };
 
@@ -87,7 +80,7 @@ export default function RecordingSettings() {
         setStatusMsg('Syncing recordings...');
         
         try {
-            const result = await syncRecordings((msg) => setStatusMsg(msg));
+            const result = await syncRecordings((msg: string) => setStatusMsg(msg));
             setIsSyncing(false);
             setStatusMsg('');
             
