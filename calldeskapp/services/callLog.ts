@@ -14,24 +14,21 @@ const getCallLogModule = () => {
     }
 };
 
+export const checkCallLogPermission = async () => {
+    if (Platform.OS !== 'android') return false;
+    return await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_CALL_LOG);
+};
+
 export const requestCallLogPermission = async () => {
     if (Platform.OS === 'android') {
         try {
             const permissions: any[] = [
                 PermissionsAndroid.PERMISSIONS.READ_CALL_LOG,
                 PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
-                PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
             ];
-
-            // Add READ_PHONE_NUMBERS for Android 11+ (API 30+)
-            if (Platform.OS === 'android' && Platform.Version >= 30) {
-                // Use string literal if not in types, but it should be in RN 0.70+
-                permissions.push(PermissionsAndroid.PERMISSIONS.READ_PHONE_NUMBERS || 'android.permission.READ_PHONE_NUMBERS');
-            }
 
             const granted = await PermissionsAndroid.requestMultiple(permissions);
 
-            // Strictly we only need READ_CALL_LOG to function, others are for better data
             return granted[PermissionsAndroid.PERMISSIONS.READ_CALL_LOG] === PermissionsAndroid.RESULTS.GRANTED;
         } catch (err) {
             console.error('Permission request error:', err);

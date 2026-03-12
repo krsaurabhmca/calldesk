@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS call_logs (
     call_time DATETIME NOT NULL,
     lead_id INT NULL,
     executive_id INT NULL,
+    recording_path VARCHAR(255) NULL,
     is_converted TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE SET NULL,

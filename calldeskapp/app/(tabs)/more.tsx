@@ -83,6 +83,13 @@ export default function MoreScreen() {
                     onPress={() => router.push('/messages')}
                     color="#25D366"
                 />
+                <MenuButton
+                    icon={Phone}
+                    title="Call Recording Sync"
+                    subtitle="Sync MIUI recordings to server"
+                    onPress={() => router.push('/settings/recording')}
+                    color="#f43f5e"
+                />
             </View>
 
             <View style={styles.section}>

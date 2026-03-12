@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, FlatList, RefreshControl, Modal, TextInput, Linking, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { fetchAndSyncCallLogs } from '../../services/callLog';
+import { fetchAndSyncCallLogs, checkCallLogPermission, requestCallLogPermission } from '../../services/callLog';
 import { apiCall } from '../../services/api';
 import { getUser } from '../../services/auth';
-import { PhoneCall, RefreshCcw, Info, CheckCircle2, Clock, UserPlus, FileEdit, X, ChevronRight, Phone, MessageSquare, Calendar as CalendarIcon, Flag } from 'lucide-react-native';
+import { PhoneCall, RefreshCcw, Info, CheckCircle2, Clock, UserPlus, FileEdit, X, ChevronRight, Phone, MessageSquare, Calendar as CalendarIcon, Flag, ShieldAlert, CheckCircle } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSnackbar } from '../../context/SnackbarContext';
 
@@ -18,6 +18,7 @@ export default function CallsSyncScreen() {
     const [logs, setLogs] = useState<any[]>([]);
     const [activeFilter, setActiveFilter] = useState('All');
     const [filteredLogs, setFilteredLogs] = useState<any[]>([]);
+    const [rationaleModalVisible, setRationaleModalVisible] = useState(false);
 
     // Update Interaction Modal State
     const [updateModalVisible, setUpdateModalVisible] = useState(false);
@@ -97,6 +98,17 @@ export default function CallsSyncScreen() {
     };
 
     const handleSync = async () => {
+        if (Platform.OS === 'android') {
+            const hasPermission = await checkCallLogPermission();
+            if (!hasPermission) {
+                setRationaleModalVisible(true);
+                return;
+            }
+        }
+        performSync();
+    };
+
+    const performSync = async () => {
         setSyncing(true);
         const result = await fetchAndSyncCallLogs();
         setSyncing(false);
@@ -106,6 +118,16 @@ export default function CallsSyncScreen() {
             fetchLogs();
         } else {
             showSnackbar(result.message || 'Make sure you are on Android and granted permissions.', 'error');
+        }
+    };
+
+    const handleGrantPermission = async () => {
+        setRationaleModalVisible(false);
+        const granted = await requestCallLogPermission();
+        if (granted) {
+            performSync();
+        } else {
+            showSnackbar('Permission is required to sync call logs.', 'error');
         }
     };
 
@@ -626,6 +648,59 @@ export default function CallsSyncScreen() {
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
+
+            {/* Permission Rationale Modal */}
+            <Modal visible={rationaleModalVisible} animationType="fade" transparent>
+                <View style={styles.modalOverlayCenter}>
+                    <View style={styles.rationaleContent}>
+                        <View style={styles.rationaleHeader}>
+                            <View style={styles.shieldIconContainer}>
+                                <ShieldAlert size={32} color="#6366f1" />
+                            </View>
+                            <Text style={styles.rationaleTitle}>Call Log Access Required</Text>
+                        </View>
+
+                        <View style={styles.rationaleBody}>
+                            <Text style={styles.rationaleText}>
+                                To sync your business calls and manage your pipeline effectively, we need permission to access your device's Call Logs and Contacts.
+                            </Text>
+
+                            <View style={styles.featureItem}>
+                                <CheckCircle size={16} color="#10b981" />
+                                <Text style={styles.featureText}>Automatically track client calls</Text>
+                            </View>
+                            <View style={styles.featureItem}>
+                                <CheckCircle size={16} color="#10b981" />
+                                <Text style={styles.featureText}>Record call duration and timing</Text>
+                            </View>
+                            <View style={styles.featureItem}>
+                                <CheckCircle size={16} color="#10b981" />
+                                <Text style={styles.featureText}>Quickly add new leads from recent calls</Text>
+                            </View>
+
+                            <Text style={styles.privacyNote}>
+                                We only read call details (number, duration) and do not share this data with third parties. You can revoke this permission anytime in settings.
+                            </Text>
+                        </View>
+
+                        <View style={styles.rationaleFooter}>
+                            <TouchableOpacity
+                                style={styles.cancelLink}
+                                onPress={() => setRationaleModalVisible(false)}
+                            >
+                                <Text style={styles.cancelLinkText}>Not Now</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.grantBtn}
+                                onPress={handleGrantPermission}
+                            >
+                                <Text style={styles.grantBtnText}>Grant Permission</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -1020,5 +1095,106 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '700',
         color: '#64748b',
+    },
+    // Rationale Modal Styles
+    modalOverlayCenter: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    rationaleContent: {
+        width: '85%',
+        backgroundColor: '#fff',
+        borderRadius: 24,
+        padding: 24,
+        alignItems: 'center',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    rationaleHeader: {
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    shieldIconContainer: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: '#f5f3ff',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    rationaleTitle: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: '#0f172a',
+        textAlign: 'center',
+    },
+    rationaleBody: {
+        width: '100%',
+        marginBottom: 24,
+    },
+    rationaleText: {
+        fontSize: 15,
+        color: '#475569',
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: 20,
+    },
+    featureItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 12,
+        backgroundColor: '#f8fafc',
+        padding: 10,
+        borderRadius: 12,
+    },
+    featureText: {
+        fontSize: 14,
+        color: '#1e293b',
+        fontWeight: '600',
+    },
+    privacyNote: {
+        fontSize: 12,
+        color: '#94a3b8',
+        textAlign: 'center',
+        marginTop: 16,
+        fontStyle: 'italic',
+    },
+    rationaleFooter: {
+        flexDirection: 'row',
+        width: '100%',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 12,
+    },
+    cancelLink: {
+        flex: 1,
+        height: 48,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    cancelLinkText: {
+        fontSize: 15,
+        color: '#64748b',
+        fontWeight: '700',
+    },
+    grantBtn: {
+        flex: 2,
+        height: 48,
+        backgroundColor: '#6366f1',
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    grantBtnText: {
+        fontSize: 15,
+        color: '#fff',
+        fontWeight: '700',
     }
 });

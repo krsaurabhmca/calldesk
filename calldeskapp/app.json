@@ -2,7 +2,7 @@
   "expo": {
     "name": "CallDesk",
     "slug": "calldeskapp",
-    "version": "1.0.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "calldeskapp",
@@ -23,8 +23,9 @@
       "permissions": [
         "READ_CALL_LOG",
         "READ_CONTACTS",
-        "READ_PHONE_STATE",
-        "READ_PHONE_NUMBERS"
+        "READ_EXTERNAL_STORAGE",
+        "READ_MEDIA_AUDIO",
+        "RECEIVE_BOOT_COMPLETED"
       ],
       "package": "com.offerplant.calldeskapp"
     },

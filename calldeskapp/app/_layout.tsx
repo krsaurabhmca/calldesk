@@ -1,8 +1,14 @@
+import React, { useEffect } from 'react';
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SnackbarProvider } from "../context/SnackbarContext";
+import { registerBackgroundSync } from "../services/backgroundSync";
 
 export default function RootLayout() {
+  useEffect(() => {
+    registerBackgroundSync();
+  }, []);
+
   return (
     <SnackbarProvider>
       <StatusBar style="dark" />
@@ -10,6 +16,7 @@ export default function RootLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="(auth)/login" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="settings/recording" options={{ title: 'Recording Settings' }} />
       </Stack>
     </SnackbarProvider>
   );
