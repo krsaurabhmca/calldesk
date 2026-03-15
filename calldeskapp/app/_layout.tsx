@@ -18,6 +18,12 @@ export default function RootLayout() {
     console.log('Deep Link received:', url);
     
     const { path, queryParams } = Linking.parse(url);
+    
+    // Immediate silent sync on call end to ensure server has latest logs
+    if (queryParams?.reason === 'call_ended') {
+      runAutoSync(true); // Force sync immediately
+    }
+
     // Path might be "" or null if root is used
     if (queryParams?.reason === 'call_ended' && queryParams?.number) {
       let phoneNumber = queryParams.number as string;

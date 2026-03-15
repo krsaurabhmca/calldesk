@@ -70,7 +70,7 @@ const autoSyncRecordings = async (): Promise<void> => {
  * Main entry point — call from _layout.tsx on app mount.
  * Throttled to once per 5 minutes. Checks token before running.
  */
-export const runAutoSync = async (): Promise<void> => {
+export const runAutoSync = async (force: boolean = false): Promise<void> => {
     try {
         const token = await SecureStore.getItemAsync(TOKEN_KEY);
         if (!token) {
@@ -81,13 +81,17 @@ export const runAutoSync = async (): Promise<void> => {
         const last = await getLastSync();
         const now  = Date.now();
 
-        if (now - last < SYNC_INTERVAL_MS) {
+        if (!force && (now - last < SYNC_INTERVAL_MS)) {
             const secsAgo = Math.round((now - last) / 1000);
             console.log(`AutoSync: Skipped — last ran ${secsAgo}s ago (cooldown: 5 min)`);
             return;
         }
 
-        console.log('AutoSync: Starting silent background sync...');
+        if (force) {
+            console.log('AutoSync: FORCED sync starting...');
+        } else {
+            console.log('AutoSync: Starting silent background sync...');
+        }
         await setLastSync();
 
         // Run both in parallel — one won't block the other
