@@ -31,12 +31,21 @@ export default function RootLayout() {
         // Search lead by mobile
         const result = await apiCall(`leads.php?search=${phoneNumber}`, 'GET');
         
-        // Find exact match in case search is broad
+        console.log(`Deep Link: Search results for ${phoneNumber}:`, result.data?.length || 0, 'items');
+        
+        // Find exact match by comparing the last 10 digits accurately
         const exactMatch = result.success && result.data ? 
-          result.data.find((l: any) => l.mobile === phoneNumber || l.mobile?.endsWith(phoneNumber)) : 
+          result.data.find((l: any) => {
+            if (!l.mobile) return false;
+            // Clean both to last 10 digits for comparison
+            const dbNum = l.mobile.replace(/[^0-9]/g, '').slice(-10);
+            const searchNum = phoneNumber.replace(/[^0-9]/g, '').slice(-10);
+            return dbNum === searchNum;
+          }) : 
           null;
 
         if (exactMatch) {
+          console.log('Deep Link: Found exact lead match:', exactMatch.name);
           router.push({
             pathname: '/lead-action',
             params: { 
@@ -47,6 +56,7 @@ export default function RootLayout() {
             }
           });
         } else {
+          console.log('Deep Link: No lead match found, opening Add Lead screen');
           router.push({
             pathname: '/lead-action',
             params: { autoAction: 'add', autoNumber: phoneNumber }

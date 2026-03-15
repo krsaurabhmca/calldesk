@@ -1,5 +1,7 @@
 <?php
 // api/leads.php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 require_once 'auth_check.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -25,10 +27,15 @@ if ($method === 'GET') {
 
     } else {
         // List leads
-        $where = ($role === 'admin') ? "l.organization_id = $org_id" : "l.organization_id = $org_id AND assigned_to = $executive_id";
         $search = mysqli_real_escape_string($conn, $_REQUEST['search'] ?? '');
+        $where = "l.organization_id = " . (int)$org_id;
+        
+        if ($role !== 'admin') {
+            $where .= " AND l.assigned_to = " . (int)$executive_id;
+        }
+        
         if ($search) {
-            $where .= " AND (name LIKE '%$search%' OR mobile LIKE '%$search%')";
+            $where .= " AND (l.name LIKE '%$search%' OR l.mobile LIKE '%$search%')";
         }
         
         $sql = "SELECT l.*, s.source_name, u.name as assigned_to_name 
@@ -36,7 +43,13 @@ if ($method === 'GET') {
                 LEFT JOIN lead_sources s ON l.source_id = s.id 
                 LEFT JOIN users u ON l.assigned_to = u.id 
                 WHERE $where ORDER BY l.id DESC LIMIT 50";
+        
         $result = mysqli_query($conn, $sql);
+        
+        if (!$result) {
+            sendResponse(false, 'Database Error: ' . mysqli_error($conn), null, 500);
+        }
+        
         $leads = [];
         while ($row = mysqli_fetch_assoc($result)) {
             $leads[] = $row;

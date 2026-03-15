@@ -10,7 +10,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const STATUS_OPTIONS = ['Pending', 'Follow-up', 'Interested', 'Converted', 'Lost'];
 
 export default function LeadActionScreen() {
-    const { autoNumber, leadId, leadName, autoAction } = useLocalSearchParams();
+    const params = useLocalSearchParams();
+    const { autoNumber, leadId, leadName, autoAction: initialAction } = params;
+    
+    const [currentAction, setCurrentAction] = useState(initialAction);
+    const [currentLeadId, setCurrentLeadId] = useState(leadId);
+    const [currentLeadName, setCurrentLeadName] = useState(leadName);
     const router = useRouter();
     const { showSnackbar } = useSnackbar();
     const insets = useSafeAreaInsets();
@@ -31,6 +36,9 @@ export default function LeadActionScreen() {
     useEffect(() => {
         const prepare = async () => {
             setLoading(true);
+            const phoneNumber = autoNumber as string;
+            setMobile(phoneNumber || '');
+
             // Fetch sources
             const sourceRes = await apiCall('sources.php', 'GET');
             if (sourceRes.success) {
@@ -38,15 +46,32 @@ export default function LeadActionScreen() {
                 if (sourceRes.data.length > 0) setSourceId(sourceRes.data[0].id.toString());
             }
 
-            // Set initial values
-            setMobile(autoNumber as string || '');
-            if (autoAction === 'update') {
+            // Secondary Check: If we are in 'add' mode, verify if lead already exists
+            // This handles cases where deep link check might have been slow or missed data
+            if (initialAction === 'add' && phoneNumber) {
+                const checkRes = await apiCall(`leads.php?search=${phoneNumber}`, 'GET');
+                if (checkRes.success && checkRes.data) {
+                    const exactMatch = checkRes.data.find((l: any) => {
+                        const dbNum = l.mobile?.replace(/[^0-9]/g, '').slice(-10);
+                        const sNum = phoneNumber.replace(/[^0-9]/g, '').slice(-10);
+                        return dbNum === sNum;
+                    });
+                    
+                    if (exactMatch) {
+                        setCurrentAction('update');
+                        setCurrentLeadId(exactMatch.id.toString());
+                        setName(exactMatch.name);
+                        setCurrentLeadName(exactMatch.name);
+                    }
+                }
+            } else if (initialAction === 'update') {
                 setName(leadName as string || '');
             }
+            
             setLoading(false);
         };
         prepare();
-    }, [autoNumber, autoAction, leadName]);
+    }, [autoNumber, initialAction, leadName]);
 
     const handleSave = async () => {
         if (!name) {
@@ -56,7 +81,7 @@ export default function LeadActionScreen() {
 
         setSubmitting(true);
         try {
-            if (autoAction === 'add') {
+            if (currentAction === 'add') {
                 const result = await apiCall('leads.php', 'POST', {
                     name,
                     mobile,
@@ -72,7 +97,7 @@ export default function LeadActionScreen() {
             } else {
                 // Update interaction
                 const result = await apiCall('followups.php', 'POST', {
-                    lead_id: leadId,
+                    lead_id: currentLeadId,
                     status,
                     remark: remark || 'Follow up after call',
                     next_follow_up_date: nextFollowUp,
@@ -120,7 +145,7 @@ export default function LeadActionScreen() {
                         <ArrowLeft size={24} color="#1e293b" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>
-                        {autoAction === 'add' ? 'Add New Lead' : 'Update Interaction'}
+                        {currentAction === 'add' ? 'Add New Lead' : 'Update Interaction'}
                     </Text>
                 </View>
 
@@ -153,7 +178,7 @@ export default function LeadActionScreen() {
                             </View>
                         </View>
 
-                        {autoAction === 'add' ? (
+                        {currentAction === 'add' ? (
                             <View style={styles.inputGroup}>
                                 <Text style={styles.label}>Lead Source</Text>
                                 <View style={styles.sourceGrid}>
@@ -207,7 +232,7 @@ export default function LeadActionScreen() {
                             </View>
                         </View>
 
-                        {autoAction === 'update' && (
+                        {currentAction === 'update' && (
                             <View style={styles.inputGroup}>
                                 <Text style={styles.label}>Next Follow-up Date</Text>
                                 <TouchableOpacity style={styles.datePicker} onPress={() => setShowDatePicker(true)}>
@@ -243,7 +268,7 @@ export default function LeadActionScreen() {
                             <>
                                 <CheckCircle2 size={24} color="#fff" />
                                 <Text style={styles.saveBtnText}>
-                                    {autoAction === 'add' ? 'Create Lead' : 'Save Interaction'}
+                                    {currentAction === 'add' ? 'Create Lead' : 'Save Interaction'}
                                 </Text>
                             </>
                         )}
