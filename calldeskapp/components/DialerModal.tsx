@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions, Platform, Linking, TextInput } from 'react-native';
 import { Phone, X, Delete, PhoneCall, UserPlus } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { makeCall } from '../services/dialer';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -26,7 +27,7 @@ export default function DialerModal({ visible, onClose }: DialerModalProps) {
 
     const handleCall = () => {
         if (phoneNumber) {
-            Linking.openURL(`tel:${phoneNumber}`);
+            makeCall(phoneNumber);
             onClose();
         }
     };
