@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, FlatList, RefreshControl, Modal, TextInput, Linking, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { makeCall } from '../../services/dialer';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { fetchAndSyncCallLogs, checkCallLogPermission, requestCallLogPermission } from '../../services/callLog';
@@ -474,7 +475,7 @@ export default function CallsSyncScreen() {
                     )}
 
                     <View style={styles.rightActions}>
-                        <TouchableOpacity style={styles.callIconBtn} onPress={() => Linking.openURL(`tel:${item.mobile}`)}>
+                        <TouchableOpacity style={styles.callIconBtn} onPress={() => makeCall(item.mobile)}>
                             <Phone size={16} color="#475569" />
                         </TouchableOpacity>
 

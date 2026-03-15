@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl, TouchableOpacity, Linking, Modal, TextInput, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { makeCall } from '../../services/dialer';
 import { useFocusEffect } from '@react-navigation/native';
 import { apiCall } from '../../services/api';
 import { Calendar as CalendarIcon, MessageSquare, Clock, Phone, X, CheckCircle2, History, ChevronRight, MessageCircle } from 'lucide-react-native';
@@ -82,7 +83,7 @@ export default function TasksScreen() {
     };
 
     const handleCall = (mobile: string) => {
-        Linking.openURL(`tel:${mobile}`);
+        makeCall(mobile);
     };
 
     const handleWhatsApp = (mobile: string) => {

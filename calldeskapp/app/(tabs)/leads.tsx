@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl, TouchableOpacity, Linking, Modal, TextInput, Alert, ScrollView, Platform, KeyboardAvoidingView, TouchableWithoutFeedback } from 'react-native';
+import { makeCall } from '../../services/dialer';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { apiCall } from '../../services/api';
@@ -146,7 +147,7 @@ export default function LeadsScreen() {
     };
 
     const handleCall = (mobile: string) => {
-        Linking.openURL(`tel:${mobile}`);
+        makeCall(mobile);
     };
 
     const handleWhatsApp = (mobile: string) => {
