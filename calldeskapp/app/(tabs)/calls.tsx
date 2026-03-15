@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, FlatList, RefreshControl, Modal, TextInput, Linking, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { fetchAndSyncCallLogs, checkCallLogPermission, requestCallLogPermission } from '../../services/callLog';
 import { apiCall } from '../../services/api';
 import { getUser } from '../../services/auth';
@@ -14,6 +15,7 @@ const STATUS_OPTIONS = ['Pending', 'Follow-up', 'Interested', 'Converted', 'Lost
 
 export default function CallsSyncScreen() {
     const { showSnackbar } = useSnackbar();
+    const router = useRouter();
     const [syncing, setSyncing] = useState(false);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -83,6 +85,11 @@ export default function CallsSyncScreen() {
     };
 
     const [hasSyncedOnce, setHasSyncedOnce] = useState(false);
+
+    const params = useLocalSearchParams();
+    const { autoAction, autoNumber, leadId, leadName } = params;
+
+    // Auto-action logic removed in favor of dedicated /lead-action screen
 
     useFocusEffect(
         useCallback(() => {
@@ -164,7 +171,9 @@ export default function CallsSyncScreen() {
     };
 
     const openAddLeadModal = (log: any) => {
-        setNewLeadMobile(log.mobile);
+        let clean = log.mobile.replace(/[^0-9]/g, '');
+        if (clean.length > 10) clean = clean.slice(-10);
+        setNewLeadMobile(clean);
         setNewLeadName(log.caller_name || '');
         setAddLeadModalVisible(true);
     };
@@ -198,13 +207,16 @@ export default function CallsSyncScreen() {
             openAddLeadModal(log);
             return;
         }
+        let clean = log.mobile.replace(/[^0-9]/g, '');
+        if (clean.length > 10) clean = clean.slice(-10);
+        
         setSelectedLog(log);
         setEditName(log.lead_name || log.caller_name || '');
         setUpdateStatus(log.lead_status || 'Interested');
         setUpdateRemark('');
         setNextFollowUp('');
         setUpdateModalVisible(true);
-        fetchLeadHistory(log.mobile);
+        fetchLeadHistory(clean);
     };
 
     const fetchLeadHistory = async (mobile: string) => {
@@ -264,7 +276,7 @@ export default function CallsSyncScreen() {
                 {
                     text: "Assign to Executive",
                     onPress: () => {
-                        // We need a way to select executive. 
+                        // We need a way to select executive.
                         // For now let's just use a simple prompt if possible or another modal.
                         // I'll reuse the existing logic if I can.
                         showSnackbar('Please use the Leads screen for detailed assignment.', 'info');
@@ -273,7 +285,28 @@ export default function CallsSyncScreen() {
                 {
                     text: "Delete Lead",
                     style: "destructive",
-                    onPress: () => handleDeleteLead(log.lead_id, log.lead_name)
+                    onPress: async () => {
+                        Alert.alert(
+                            "Delete Lead",
+                            "Are you sure you want to delete this lead?",
+                            [
+                                { text: "Cancel", style: "cancel" },
+                                {
+                                    text: "Delete",
+                                    style: "destructive",
+                                    onPress: async () => {
+                                        const res = await apiCall(`leads.php?id=${log.lead_id}`, 'DELETE');
+                                        if (res.success) {
+                                            showSnackbar('Lead deleted', 'success');
+                                            fetchLogs();
+                                        } else {
+                                            showSnackbar('Failed to delete lead', 'error');
+                                        }
+                                    }
+                                }
+                            ]
+                        );
+                    }
                 }
             ]
         );
@@ -744,6 +777,15 @@ export default function CallsSyncScreen() {
                                 style={[styles.input, { backgroundColor: '#f1f5f9', color: '#64748b' }]}
                                 value={newLeadMobile}
                                 editable={false}
+                                onChangeText={(val) => {
+                                    // Clean to 10-digit Indian number
+                                    let cleaned = val.replace(/[^0-9]/g, '');
+                                    if (cleaned.length > 10) {
+                                        cleaned = cleaned.slice(-10);
+                                    }
+                                    setNewLeadMobile(cleaned);
+                                }}
+                                keyboardType="phone-pad"
                             />
 
                             <Text style={styles.label}>Lead Name</Text>
@@ -799,7 +841,7 @@ export default function CallsSyncScreen() {
 
                         <View style={styles.rationaleBody}>
                             <Text style={styles.rationaleText}>
-                                To sync your business calls and manage your pipeline effectively, we need permission to access your device's Call Logs and Contacts.
+                                To sync your business calls, auto-open after calls, and manage your pipeline effectively, we need permission to access your device's Call Logs, Contacts, and Phone State.
                             </Text>
 
                             <View style={styles.featureItem}>

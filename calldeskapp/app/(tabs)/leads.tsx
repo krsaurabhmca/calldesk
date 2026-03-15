@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl, TouchableOpacity, Linking, Modal, TextInput, Alert, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl, TouchableOpacity, Linking, Modal, TextInput, Alert, ScrollView, Platform, KeyboardAvoidingView, TouchableWithoutFeedback } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { apiCall } from '../../services/api';
 import { getUser } from '../../services/auth';
 import { Phone, User, Tag, Plus, X, ChevronRight, CheckCircle2, History, MessageSquare, Calendar as CalendarIcon, Search, Filter, MessageCircle, MoreVertical, Trash2, UserPlus } from 'lucide-react-native';
@@ -15,6 +16,7 @@ const STATUS_OPTIONS = ['Pending', 'Follow-up', 'Interested', 'Converted', 'Lost
 
 export default function LeadsScreen() {
     const { showSnackbar } = useSnackbar();
+    const insets = useSafeAreaInsets();
     const [leads, setLeads] = useState([]);
     const [sources, setSources] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -78,7 +80,8 @@ export default function LeadsScreen() {
     const fetchUserRole = async () => {
         const user = await getUser();
         if (user) {
-            setUserRole(user.role || '');
+            // Ensure lowercase for consistent comparison
+            setUserRole(user.role?.toLowerCase() || '');
         }
     };
 
@@ -223,21 +226,23 @@ export default function LeadsScreen() {
     };
 
     const handleDeleteLead = async () => {
-        if (!selectedLeadForAction) return;
+        const lead = selectedLeadForAction || selectedLead;
+        if (!lead) return;
 
         Alert.alert(
             "Delete Lead",
-            `Are you sure you want to delete ${selectedLeadForAction.name}?`,
+            `Are you sure you want to delete ${lead.name}?`,
             [
                 { text: "Cancel", style: "cancel" },
                 {
                     text: "Delete",
                     style: "destructive",
                     onPress: async () => {
-                        const result = await apiCall(`leads.php?id=${selectedLeadForAction.id}`, 'DELETE');
+                        const result = await apiCall(`leads.php?id=${lead.id}`, 'DELETE');
                         if (result.success) {
                             showSnackbar('Lead deleted', 'success');
                             setActionModalVisible(false);
+                            setUpdateModalVisible(false);
                             fetchData();
                         } else {
                             showSnackbar(result.message || 'Failed to delete lead', 'error');
@@ -451,9 +456,13 @@ export default function LeadsScreen() {
                             <Text style={styles.label}>Mobile *</Text>
                             <TextInput
                                 style={styles.input}
-                                placeholder="10-digit Mobile"
+                                placeholder="10-digit Indian Mobile"
                                 value={newMobile}
-                                onChangeText={setNewMobile}
+                                onChangeText={(val) => {
+                                    let cleaned = val.replace(/[^0-9]/g, '');
+                                    if (cleaned.length > 10) cleaned = cleaned.slice(-10);
+                                    setNewMobile(cleaned);
+                                }}
                                 keyboardType="phone-pad"
                                 maxLength={10}
                             />
@@ -599,6 +608,14 @@ export default function LeadsScreen() {
                                             {submitting ? 'Updating...' : 'Save Interaction'}
                                         </Text>
                                     </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                         style={styles.deleteButtonInModal}
+                                         onPress={handleDeleteLead}
+                                     >
+                                         <Trash2 color="#ef4444" size={18} />
+                                         <Text style={styles.deleteButtonTextInModal}>Delete Lead</Text>
+                                     </TouchableOpacity>
                                 </View>
                             ) : (
                                 <View>
@@ -668,10 +685,10 @@ export default function LeadsScreen() {
                 </KeyboardAvoidingView>
             </Modal>
 
-            {/* Action Selection Modal (Long Press) */}
+            {/* Fresh Modal (Long Press) */}
             <Modal
                 visible={actionModalVisible}
-                animationType="fade"
+                animationType="slide"
                 transparent={true}
                 onRequestClose={() => setActionModalVisible(false)}
             >
@@ -680,35 +697,55 @@ export default function LeadsScreen() {
                     activeOpacity={1}
                     onPress={() => setActionModalVisible(false)}
                 >
-                    <View style={styles.actionSheet}>
-                        <View style={styles.actionSheetHeader}>
-                            <Text style={styles.actionSheetTitle}>{selectedLeadForAction?.name}</Text>
-                            <Text style={styles.actionSheetSubtitle}>{selectedLeadForAction?.mobile}</Text>
-                        </View>
+                    <TouchableWithoutFeedback>
+                        <View style={[styles.freshModal, { paddingBottom: Math.max(insets.bottom, 24) }]}>
+                            <View style={styles.freshModalHeader}>
+                                <View style={[styles.dragHandle, { backgroundColor: '#e2e8f0', width: 40, height: 4, borderRadius: 2, marginBottom: 16 }]} />
+                                <Text style={styles.freshModalTitle}>{selectedLeadForAction?.name || 'Lead Actions'}</Text>
+                                <Text style={styles.freshModalSubtitle}>{selectedLeadForAction?.mobile}</Text>
+                                <View style={styles.adminTag}>
+                                    <Text style={styles.adminTagText}>ROLE: {userRole.toUpperCase() || 'UNSET'}</Text>
+                                </View>
+                            </View>
 
-                        <TouchableOpacity style={styles.actionItem} onPress={() => { setActionModalVisible(false); openUpdateModal(selectedLeadForAction); }}>
-                            <History size={20} color="#6366f1" />
-                            <Text style={styles.actionItemText}>View Details & History</Text>
-                        </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={styles.freshModalItem} 
+                                onPress={() => { setActionModalVisible(false); openUpdateModal(selectedLeadForAction); }}
+                            >
+                                <View style={styles.freshIcon}>
+                                    <History size={20} color="#6366f1" />
+                                </View>
+                                <Text style={styles.freshModalItemText}>View Details & History</Text>
+                            </TouchableOpacity>
 
-                        {(userRole === 'admin' || userRole === 'owner') && (
-                            <>
-                                <TouchableOpacity style={styles.actionItem} onPress={() => setAssignModalVisible(true)}>
+                            <TouchableOpacity 
+                                style={styles.freshModalItem} 
+                                onPress={() => { setActionModalVisible(false); setAssignModalVisible(true); }}
+                            >
+                                <View style={styles.freshIcon}>
                                     <UserPlus size={20} color="#6366f1" />
-                                    <Text style={styles.actionItemText}>Assign to Executive</Text>
-                                </TouchableOpacity>
+                                </View>
+                                <Text style={styles.freshModalItemText}>Assign to Executive</Text>
+                            </TouchableOpacity>
 
-                                <TouchableOpacity style={[styles.actionItem, styles.deleteItem]} onPress={handleDeleteLead}>
+                            <TouchableOpacity 
+                                style={styles.freshModalItem} 
+                                onPress={handleDeleteLead}
+                            >
+                                <View style={[styles.freshIcon, { backgroundColor: '#fee2e2' }]}>
                                     <Trash2 size={20} color="#ef4444" />
-                                    <Text style={[styles.actionItemText, styles.deleteItemText]}>Delete Lead</Text>
-                                </TouchableOpacity>
-                            </>
-                        )}
+                                </View>
+                                <Text style={[styles.freshModalItemText, { color: '#ef4444' }]}>Delete Lead</Text>
+                            </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.cancelAction} onPress={() => setActionModalVisible(false)}>
-                            <Text style={styles.cancelActionText}>Cancel</Text>
-                        </TouchableOpacity>
-                    </View>
+                            <TouchableOpacity 
+                                style={styles.freshModalCancel} 
+                                onPress={() => setActionModalVisible(false)}
+                            >
+                                <Text style={styles.freshModalCancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </TouchableWithoutFeedback>
                 </TouchableOpacity>
             </Modal>
 
@@ -1036,58 +1073,87 @@ const styles = StyleSheet.create({
         gap: 8,
         marginBottom: 16,
     },
-    actionSheet: {
+    freshModal: {
         backgroundColor: '#fff',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        padding: 24,
-        paddingBottom: Platform.OS === 'ios' ? 40 : 24,
         width: '100%',
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
+        padding: 24,
+        paddingBottom: 40,
+        elevation: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
     },
-    actionSheetHeader: {
-        marginBottom: 20,
+    dragHandle: {
+        width: 40,
+        height: 4,
+        backgroundColor: '#e2e8f0',
+        borderRadius: 2,
+        marginBottom: 16,
+        alignSelf: 'center',
+    },
+    freshModalHeader: {
         alignItems: 'center',
+        marginBottom: 20,
+        paddingBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
     },
-    actionSheetTitle: {
+    freshModalTitle: {
         fontSize: 18,
-        fontWeight: '800',
-        color: '#1e293b',
+        fontWeight: '900',
+        color: '#0f172a',
     },
-    actionSheetSubtitle: {
+    freshModalSubtitle: {
         fontSize: 14,
         color: '#64748b',
         marginTop: 4,
+        fontWeight: '600',
     },
-    actionItem: {
+    freshModalItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
+        paddingVertical: 12,
         gap: 12,
     },
-    actionItemText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#475569',
-    },
-    deleteItem: {
-        borderBottomWidth: 0,
-    },
-    deleteItemText: {
-        color: '#ef4444',
-    },
-    cancelAction: {
-        marginTop: 12,
-        backgroundColor: '#f1f5f9',
-        paddingVertical: 14,
-        borderRadius: 12,
+    freshIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        backgroundColor: '#f5f3ff',
+        justifyContent: 'center',
         alignItems: 'center',
     },
-    cancelActionText: {
-        fontSize: 16,
+    freshModalItemText: {
+        fontSize: 15,
         fontWeight: '700',
+        color: '#334155',
+    },
+    freshModalCancel: {
+        marginTop: 16,
+        paddingVertical: 14,
+        borderRadius: 12,
+        backgroundColor: '#f8fafc',
+        alignItems: 'center',
+    },
+    freshModalCancelText: {
+        fontSize: 15,
+        fontWeight: '800',
         color: '#64748b',
+    },
+    adminTag: {
+        marginTop: 8,
+        backgroundColor: '#eff6ff',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 4,
+    },
+    adminTagText: {
+        fontSize: 9,
+        fontWeight: '900',
+        color: '#3b82f6',
     },
     execItem: {
         flexDirection: 'row',
@@ -1256,5 +1322,18 @@ const styles = StyleSheet.create({
         backgroundColor: '#eff6ff',
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    deleteButtonInModal: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        paddingVertical: 12,
+        marginBottom: 20,
+    },
+    deleteButtonTextInModal: {
+        color: '#ef4444',
+        fontSize: 15,
+        fontWeight: '700',
     }
 });

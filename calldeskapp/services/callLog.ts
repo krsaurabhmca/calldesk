@@ -25,6 +25,7 @@ export const requestCallLogPermission = async () => {
             const permissions: any[] = [
                 PermissionsAndroid.PERMISSIONS.READ_CALL_LOG,
                 PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
+                PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
             ];
 
             const granted = await PermissionsAndroid.requestMultiple(permissions);

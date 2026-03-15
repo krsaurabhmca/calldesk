@@ -87,6 +87,14 @@ if ($method === 'GET') {
         if (empty($name) || empty($mobile)) {
             sendResponse(false, 'Name and Mobile are required', null, 400);
         }
+
+        // --- DUPLICATE CHECK START ---
+        $check_sql = "SELECT id FROM leads WHERE mobile = '$mobile' AND organization_id = $org_id LIMIT 1";
+        $check_res = mysqli_query($conn, $check_sql);
+        if (mysqli_num_rows($check_res) > 0) {
+            sendResponse(false, 'This mobile number is already registered as a lead.', null, 400);
+        }
+        // --- DUPLICATE CHECK END ---
         
         $sql = "INSERT INTO leads (organization_id, name, mobile, source_id, assigned_to, remarks) 
                 VALUES ($org_id, '$name', '$mobile', " . ($source_id ?: "NULL") . ", $executive_id, '$remarks')";
